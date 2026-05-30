@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Vazirmatn", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-forest: #1f3025;
+  --color-brand-sage: #2d4a38;
+  --color-brand-moss: #15803d;
+  --color-brand-sand: #f5f4f0;
+  --color-brand-clay: #b45309;
+  
+  --color-con-dark: #182235;
+  --color-con-main: #2563eb;
+  --color-con-slate: #cfd8dc;
+  
+  --color-mac-dark: #3b1a13;
+  --color-mac-main: #c2410c;
+  --color-mac-accent: #ea580c;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f5f4f0;
+  direction: rtl;
+  text-align: right;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    font-size: 11pt;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-card {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 1.5rem !important;
+  }
+}
