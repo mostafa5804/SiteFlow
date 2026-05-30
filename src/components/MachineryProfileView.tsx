@@ -68,7 +68,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
   const [editOwnerName, setEditOwnerName] = useState("");
   const [editMachineType, setEditMachineType] = useState("");
   const [editLicensePlate, setEditLicensePlate] = useState("");
-  const [editContractType, setEditContractType] = useState<"hourly" | "daily">("hourly");
+  const [editContractType, setEditContractType] = useState<"hourly" | "daily" | "monthly">("hourly");
   const [editBaseRent, setEditBaseRent] = useState("");
   const [editMachineCategory, setEditMachineCategory] = useState("سنگین");
   const [editLeapYearAdjusted, setEditLeapYearAdjusted] = useState(false);
@@ -97,7 +97,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
     setEditOwnerName(profile.owner_name);
     setEditMachineType(profile.machine_type);
     setEditLicensePlate(profile.license_plate || "");
-    setEditContractType(profile.contract_type as "hourly" | "daily");
+    setEditContractType(profile.contract_type as "hourly" | "daily" | "monthly");
     setEditBaseRent(profile.base_rent ? formatInputNumber(profile.base_rent) : "");
     setEditMachineCategory(profile.machine_category || "سنگین");
     setEditLeapYearAdjusted(!!profile.leap_year_adjusted);
@@ -415,7 +415,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
               <span className="bg-slate-100 text-stone-850 font-serif border border-stone-200 rounded px-2.5 py-1 font-bold">پلاک: {profile.license_plate}</span>
               <span className="text-stone-500">مالک: <span className="font-bold text-slate-800">{profile.owner_name}</span></span>
               <span className="bg-orange-50 text-orange-850 border border-orange-200 px-2.5 py-0.5 rounded-full font-bold">
-                محاسبه: {profile.contract_type === "hourly" ? "قرارداد ساعتی" : "اجاره ماهانه"}
+                محاسبه: {profile.contract_type === "hourly" ? "قرارداد ساعتی" : profile.contract_type === "daily" ? "قرارداد روزانه" : "قرارداد ماهانه"}
               </span>
               {profile.contract_no && (
                 <span className="bg-neutral-100 text-neutral-800 border border-neutral-200 rounded px-2 py-0.5 font-mono text-[11px]">
@@ -619,7 +619,8 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                     </thead>
                     <tbody className="divide-y divide-stone-100/50">
                       {filteredPerformance.map((perf) => {
-                        const daysInMonth = perf.month_index <= 6 ? 31 : 30;
+                        const daysInMonth = perf.month_index <= 6 ? 31 : (perf.month_index === 12 ? (profile.leap_year_adjusted ? 30 : 29) : 30);
+                        const currentRate = perf.rate_used || profile.base_rent;
                         return (
                           <tr key={perf.id} className="hover:bg-slate-50 transition-colors">
                             <td className="py-4 px-4 font-bold text-stone-700">{perf.month_name} <span className="text-[11px] text-stone-400 font-normal">({perf.year || 1405})</span></td>
@@ -631,11 +632,13 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                             </td>
                             <td className="py-4 px-4 text-left text-[11px] text-stone-500">
                               {profile.contract_type === "hourly" ? (
-                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} ساعت × {formatCurrency(profile.base_rent)}</span>
+                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} ساعت × {formatCurrency(currentRate)} ریال</span>
+                              ) : profile.contract_type === "daily" ? (
+                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} روز × {formatCurrency(currentRate)} ریال (روزمزد)</span>
                               ) : (
                                 <span>
                                   مبنای ماه {perf.month_name} ({daysInMonth} روزه) 
-                                  - روزمزد دقیق: {formatCurrency(Math.round(profile.base_rent / daysInMonth))}
+                                  - روزمزد تناسبی: {formatCurrency(Math.round(currentRate / daysInMonth))} ریال از اجاره {formatCurrency(currentRate)}
                                 </span>
                               )}
                             </td>
@@ -802,16 +805,20 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                   onChange={(e) => setPerformanceValue(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-mac-main text-right"
                 />
-                {profile.contract_type === "daily" && (
+                {profile.contract_type === "monthly" && (
                   <p className="text-[10px] text-stone-400 mt-2 leading-relaxed">
-                    * توجه: سیستم اجاره ماهانه را بر روزهای واقعی تقویم ماه ({selectedMonthIndex <= 6 ? "۳۱" : "۳۰"} روز) تقسیم کرده و تناسب روزکارکرد را ثبت می‌کند.
+                    * توجه: سیستم اجاره کل ماه را بر روزهای واقعی تقویم ماه مشخص‌شده تقسیم کرده و تناسب به روزهای کارکرد را محاسبه می‌کند.
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-stone-500 mb-1.5">
-                  {profile.contract_type === "hourly" ? "نرخ هر ساعت کارکرد برای این دوره (ریال)" : "نرخ روزانه/ماهانه برای این دوره (ریال)"}
+                  {profile.contract_type === "hourly" 
+                    ? "نرخ افزوده/الحاقی هر ساعت برای این دوره (ریال)" 
+                    : profile.contract_type === "daily" 
+                    ? "نرخ افزوده/الحاقی روزمزد برای این دوره (ریال)" 
+                    : "كل مبلغ اجاره ماهانه جدید اعمالی برای این دوره (ریال)"}
                 </label>
                 <input
                   id="perf-rate-input"
@@ -822,8 +829,15 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-mac-main text-right font-medium font-mono font-bold"
                   dir="ltr"
                 />
-                <span className="text-[10px] text-stone-400 mt-1 block">
-                  * در صورتی که این فیلد خالی بماند، به صورت پیش‌فرض قیمت اصلی ثبت‌شده در قرارداد مبنا قرار می‌گیرد (نیاز به زدن مجدد یا تکراری نیست).
+                <span className="text-[10px] text-stone-400 mt-1.5 block leading-relaxed">
+                  {profile.contract_type === "hourly" 
+                    ? "* نرخ الحاقی این کارکرد را به صورت «ریال برای هر ساعت» درج کنید." 
+                    : profile.contract_type === "daily" 
+                    ? "* نرخ الحاقی این کارکرد را به صورت «نرخ روزمرد (ریال برای هر روز)» درج کنید." 
+                    : "* نرخ الحاقی این کارکرد را به صورت «اجاره کل ماه (ریال)» درج کنید تا سیستم بر اساس روزهای ماهیانه تناسب کارکرد را محاسبه کند."}
+                </span>
+                <span className="text-[10px] text-amber-600 block mt-1 font-bold">
+                  * در صورت خالی ماندن، نرخ پیش‌فرض قرارداد مبنا قرار خواهد گرفت (نیاز به وارد کردن مقدار تکراری نیست).
                 </span>
               </div>
 
@@ -1217,11 +1231,12 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                    <label className="block text-[11px] font-bold text-stone-500 mb-1">مبنای قرارداد</label>
                    <select
                      value={editContractType}
-                     onChange={(e) => setEditContractType(e.target.value as "hourly" | "daily")}
+                     onChange={(e) => setEditContractType(e.target.value as "hourly" | "daily" | "monthly")}
                      className="w-full px-2 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs cursor-pointer"
                    >
                      <option value="hourly">ساعتی</option>
-                     <option value="daily">روزانه/ماهانه</option>
+                     <option value="daily">روزانه</option>
+                     <option value="monthly">ماهانه</option>
                    </select>
                 </div>
                 <div>
@@ -1239,7 +1254,11 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-500 mb-1">
-                  {editContractType === "hourly" ? "نرخ اجاره هر ساعت (ریال)" : "مبلغ کل اجاره ماهانه پایه (ریال)"}
+                  {editContractType === "hourly" 
+                    ? "نرخ اجاره هر ساعت (ریال)" 
+                    : editContractType === "daily" 
+                    ? "نرخ اجاره هر روز (ریال)" 
+                    : "مبلغ کل اجاره ماهانه پایه (ریال)"}
                 </label>
                 <input
                   type="text"
@@ -1388,16 +1407,29 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-500 mb-1.5">الحاقیه نرخ اعمالی این کارکرد (ریال)</label>
+                <label className="block text-xs font-bold text-stone-500 mb-1.5">
+                  {profile?.contract_type === "hourly" 
+                    ? "نرخ افزوده/الحاقی هر ساعت برای این دوره (ریال)" 
+                    : profile?.contract_type === "daily" 
+                    ? "نرخ افزوده/الحاقی روزمزد برای این دوره (ریال)" 
+                    : "كل مبلغ اجاره ماهانه جدید اعمالی برای این دوره (ریال)"}
+                </label>
                 <input
                   type="number"
                   value={editingPerformanceRate}
                   onChange={(e) => setEditingPerformanceRate(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono text-center font-bold text-orange-850"
-                  placeholder="تنظیم مجدد قیمت الحاقیه در دوره‌کاری"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono text-center font-bold text-mac-main"
+                  placeholder={profile ? `پیش‌فرض قرارداد: ${profile.base_rent} ریال` : ""}
                 />
-                <span className="text-[10px] text-stone-400 mt-1 block">
-                  * در صورتی که این فیلد خالی بماند، نرخ اجاره اصلی قرارداد مبنا قرار می‌گیرد.
+                <span className="text-[10px] text-stone-400 mt-1.5 block leading-relaxed">
+                  {profile?.contract_type === "hourly" 
+                    ? "* نرخ الحاقی این کارکرد را به صورت «ریال برای هر ساعت» درج کنید." 
+                    : profile?.contract_type === "daily" 
+                    ? "* نرخ الحاقی این کارکرد را به صورت «نرخ روزمرد (ریال برای هر روز)» درج کنید." 
+                    : "* نرخ الحاقی این کارکرد را به صورت «اجاره کل ماه (ریال)» درج کنید تا سیستم بر اساس روزهای ماهیانه تناسب کارکرد را محاسبه کند."}
+                </span>
+                <span className="text-[10px] text-amber-600 block mt-1 font-bold">
+                  * در صورت خالی ماندن، نرخ پیش‌فرض قرارداد مبنا قرار خواهد گرفت (نیاز به وارد کردن مقدار تکراری نیست).
                 </span>
               </div>
 

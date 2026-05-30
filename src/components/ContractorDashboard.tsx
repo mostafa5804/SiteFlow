@@ -885,27 +885,29 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                     <button
                       type="button"
                       onClick={() => setShowActiveQuickSelect(!showActiveQuickSelect)}
-                      className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-all flex items-center gap-1 cursor-pointer inline-flex"
+                      className="text-[10px] text-indigo-700 hover:text-indigo-900 bg-indigo-50/50 hover:bg-indigo-100/65 px-2 py-1 rounded-lg border border-indigo-150 transition-all flex items-center gap-1 cursor-pointer inline-flex font-semibold"
                     >
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showActiveQuickSelect ? "rotate-180" : ""}`} />
-                      <span>{showActiveQuickSelect ? "پنهان‌سازی مراجع پیمانکاران فعال" : "انتخاب سریع از پیمانکاران فعال کارگاه..."}</span>
+                      <span>{showActiveQuickSelect ? "پنهان‌سازی مراجع پیمانکاران فعال" : "انتخاب یا جستجو از لیست فعال کارگاه..."}</span>
                     </button>
                     {showActiveQuickSelect && (
                       <motion.div 
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-1.5 flex flex-wrap gap-1 max-h-24 overflow-y-auto p-2 bg-slate-50 border border-stone-100 rounded-lg select-none"
+                        className="mt-2 p-1.5 bg-slate-50 border border-indigo-100 rounded-xl select-none"
                       >
-                        {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => setNewContractorName(name)}
-                            className="px-2 py-0.5 text-[9px] bg-white hover:bg-slate-100 border border-stone-200 hover:border-indigo-500/40 text-stone-700 rounded transition-all cursor-pointer truncate max-w-[150px]"
-                          >
-                            {name}
-                          </button>
-                        ))}
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) setNewContractorName(e.target.value);
+                          }}
+                          value={newContractorName}
+                          className="w-full px-2.5 py-2 bg-white border border-stone-200 hover:border-indigo-500 rounded-lg text-xs focus:outline-none cursor-pointer font-medium text-slate-800"
+                        >
+                          <option value="">-- انتخاب از لیست فعال کارگاهی --</option>
+                          {Array.from(new Set(contractors.map(c => c.name.trim()))).sort().map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
                       </motion.div>
                     )}
                   </div>

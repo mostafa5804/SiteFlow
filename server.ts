@@ -1356,7 +1356,9 @@ app.put("/api/machinery/:id", (req, res) => {
       let total_calculated_amount = 0;
       if (contract_type === "hourly") {
         total_calculated_amount = p.performance_value * activeRent;
-      } else {
+      } else if (contract_type === "daily") {
+        total_calculated_amount = p.performance_value * activeRent;
+      } else { // monthly
         const days = p.month_index <= 6 ? 31 : (p.month_index === 12 ? (leap_year_adjusted ? 30 : 29) : 30);
         total_calculated_amount = Math.round(p.performance_value * (activeRent / days));
       }
@@ -1414,7 +1416,9 @@ app.post("/api/machinery/:id/performance", (req, res) => {
     let total_calculated_amount = 0;
     if (m.contract_type === "hourly") {
       total_calculated_amount = Number(performance_value) * activeRent;
-    } else {
+    } else if (m.contract_type === "daily") {
+      total_calculated_amount = Number(performance_value) * activeRent;
+    } else { // monthly
       const days = Number(month_index) <= 6 ? 31 : (Number(month_index) === 12 ? (m.leap_year_adjusted ? 30 : 29) : 30);
       total_calculated_amount = Math.round(Number(performance_value) * (activeRent / days));
     }
@@ -1464,7 +1468,9 @@ app.put("/api/machinery/performance/:id", (req, res) => {
     let total_calculated_amount = 0;
     if (m.contract_type === "hourly") {
       total_calculated_amount = Number(performance_value) * activeRent;
-    } else {
+    } else if (m.contract_type === "daily") {
+      total_calculated_amount = Number(performance_value) * activeRent;
+    } else { // monthly
       const days = Number(month_index) <= 6 ? 31 : (Number(month_index) === 12 ? (m.leap_year_adjusted ? 30 : 29) : 30);
       total_calculated_amount = Math.round(Number(performance_value) * (activeRent / days));
     }

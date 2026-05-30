@@ -87,7 +87,7 @@ export interface Machine {
   owner_name: string;
   machine_type: string;
   license_plate: string;
-  contract_type: 'hourly' | 'daily';
+  contract_type: 'hourly' | 'daily' | 'monthly';
   base_rent: number;
   total_performance: number;
   total_calculated: number;

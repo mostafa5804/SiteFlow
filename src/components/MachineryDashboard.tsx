@@ -57,7 +57,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
   const [ownerName, setOwnerName] = useState("");
   const [machineType, setMachineType] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
-  const [contractType, setContractType] = useState<"hourly" | "daily">("hourly");
+  const [contractType, setContractType] = useState<"hourly" | "daily" | "monthly">("hourly");
   const [baseRent, setBaseRent] = useState("");
   const [machineCategory, setMachineCategory] = useState("سنگین");
 
@@ -212,6 +212,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
   const totalRemaining = machinery.reduce((sum, m) => sum + (m.remaining_balance || 0), 0);
   const hourlyCount = machinery.filter(m => m.contract_type === "hourly").length;
   const dailyCount = machinery.filter(m => m.contract_type === "daily").length;
+  const monthlyCount = machinery.filter(m => m.contract_type === "monthly").length;
 
   const filteredMachinery = machinery
     .filter(m => {
@@ -579,7 +580,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
         <>
 
       {/* Aggregate Cards Summary Panel */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <div id="machinery-card-gross" className="bg-white p-4 rounded-xl border border-stone-200/80 border-r-4 border-r-mac-dark shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">کل کارکرد هزینه شده</span>
@@ -624,13 +625,25 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
         <div id="machinery-card-daily" className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">قرارداد اجاره ماهانه</span>
-            <span className="p-1 px-2 bg-indigo-50 text-indigo-600 rounded border border-indigo-200">
+            <span className="text-xs font-bold text-slate-500">قراردادهای روزانه</span>
+            <span className="p-1 px-2 bg-emerald-50 text-emerald-600 rounded border border-emerald-200">
               <Calendar className="w-3.5 h-3.5" />
             </span>
           </div>
           <p className="text-sm sm:text-base font-extrabold text-slate-900 mt-2">
             {convertToPersianDigits(dailyCount)} <span className="text-xs text-stone-400 font-normal">دستگاه</span>
+          </p>
+        </div>
+
+        <div id="machinery-card-monthly" className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">قراردادهای ماهانه</span>
+            <span className="p-1 px-2 bg-blue-50 text-blue-600 rounded border border-blue-200">
+              <Calendar className="w-3.5 h-3.5" />
+            </span>
+          </div>
+          <p className="text-sm sm:text-base font-extrabold text-slate-900 mt-2">
+            {convertToPersianDigits(monthlyCount)} <span className="text-xs text-stone-400 font-normal">دستگاه</span>
           </p>
         </div>
       </div>
@@ -681,7 +694,8 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                 >
                   <option value="all">همه</option>
                   <option value="hourly">ساعتی</option>
-                  <option value="daily">روزانه/ماهانه</option>
+                  <option value="daily">روزانه</option>
+                  <option value="monthly">ماهانه</option>
                 </select>
               </div>
 
@@ -793,15 +807,17 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                       <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                         m.contract_type === "hourly" 
                           ? "bg-amber-50 text-amber-800 border border-amber-200" 
-                          : "bg-indigo-50 text-indigo-800 border border-indigo-200"
+                          : m.contract_type === "daily"
+                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          : "bg-blue-50 text-blue-800 border border-blue-200"
                       }`}>
-                        {m.contract_type === "hourly" ? "ساعتی" : "ماهانه"}
+                        {m.contract_type === "hourly" ? "ساعتی" : m.contract_type === "daily" ? "روزانه" : "ماهانه"}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-left font-mono font-medium">
                       {formatCurrency(m.base_rent)} 
                       <span className="text-[10px] text-stone-400 mr-1">
-                        / {m.contract_type === "hourly" ? "ساعت" : "ماه"}
+                        / {m.contract_type === "hourly" ? "ساعت" : m.contract_type === "daily" ? "روز" : "ماه"}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center font-bold text-stone-800">
@@ -936,11 +952,12 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                 <select
                   id="contract-type-select"
                   value={contractType}
-                  onChange={(e) => setContractType(e.target.value as "hourly" | "daily")}
+                  onChange={(e) => setContractType(e.target.value as "hourly" | "daily" | "monthly")}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-mac-main text-right"
                 >
                   <option value="hourly">ساعتی (بر اساس ساعات واقعی کارکرد)</option>
-                  <option value="daily">روزانه (اجاره پایه ماهانه تقسیم بر روزهای ماه)</option>
+                  <option value="daily">روزانه (نرخ روزمرد مستقل از تعداد روزهای ماه)</option>
+                  <option value="monthly">ماهانه (اجاره پایه ماهانه تقسیم بر روزهای ماه)</option>
                 </select>
               </div>
 
@@ -959,7 +976,11 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
               <div>
                 <label className="block text-xs font-bold text-stone-500 mb-1.5">
-                  {contractType === "hourly" ? "نرخ اجاره هر ساعت (ریال)" : "مبلغ کل اجاره ماهانه پایه (ریال)"}
+                  {contractType === "hourly" 
+                    ? "نرخ اجاره هر ساعت (ریال)" 
+                    : contractType === "daily" 
+                    ? "نرخ اجاره هر روز (ریال)" 
+                    : "مبلغ کل اجاره ماهانه پایه (ریال)"}
                 </label>
                 <input
                   id="base-rent-input"
