@@ -1,4 +1,4 @@
-# CivilSync (SiteFlow-PMIS) 🛠️
+# SiteFlow 🛠️
 ### سامانه هوشمند و یکپارچه امور کارگاه و دفتر فنی
 
 یک سیستم یکپارچه، مدرن و تحت وب برای مدیریت اطلاعات پروژه (PMIS) که موازنه دقیق میان سه رکن اصلی کارگاه‌های عمرانی (کالای انبار، تراز مالی پیمانکاران، و کارکرد ماشین‌آلات) را بدون پیچیدگی‌های سیستم‌های مالی و حسابداری بزرگ برقرار می‌کند. این برنامه به طور ویژه برای کارگاه‌ها و پروژه‌های زیربنایی و خطوط انتقال طراحی شده است.
@@ -46,7 +46,7 @@
 ## 📁 ساختار پیشنهادی پوشه‌ها (Project Structure)
 
 ```text
-civil-sync/
+SiteFlow/
 ├── backend/
 │   ├── database/        # فایل دیتابیس و اسکیما (SQLite)
 │   ├── routes/          # روت‌های انبار، پیمانکاران و ماشین‌آلات
@@ -58,11 +58,12 @@ civil-sync/
 │   │   ├── pages/       # صفحات داشبورد انبار، مالی و ماشین‌آلات
 │   │   ├── App.jsx      # مدیریت سیستم مسیریابی (Routing)
 │   │   └── index.css    # کانفیگ تلویند و فونت وزیرمتن
-└── README.md```
+└── README.md
+```
 ## 💻 نحوه راه‌اندازی (Installation)
 
 # Clone the repository
-git clone [https://github.com/your-username/civil-sync.git](https://github.com/your-username/civil-sync.git)
+git clone [https://github.com/your-username/civil-sync.git](https://github.com/your-username/SiteFlow.git)
 
 # Setup Backend
 cd civil-sync/backend
