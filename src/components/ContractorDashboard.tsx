@@ -12,10 +12,15 @@ import {
   DollarSign, 
   ShieldAlert, 
   Coins,
-  AlertTriangle 
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Printer,
+  X
 } from "lucide-react";
 import { Contractor } from "../types";
-import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber } from "../utils/formatters";
+import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber, getJalaliDateStr } from "../utils/formatters";
 import { exportContractorsToExcel } from "../utils/excelExport";
 
 interface ContractorDashboardProps {
@@ -34,7 +39,19 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
   const [filterActivity, setFilterActivity] = useState("all");
   const [filterBalance, setFilterBalance] = useState("all");
   const [sortBy, setSortBy] = useState("id");
-  const [activeTab, setActiveTab] = useState<"list" | "settings">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "consolidated" | "settings">("list");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  
+  // Printing state for consolidated reports
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printReportType, setPrintReportType] = useState<"summary" | "detailed">("summary");
+  const [printContractorFilter, setPrintContractorFilter] = useState("all");
+  const [printActivityFilter, setPrintActivityFilter] = useState("all");
+  const [showActiveQuickSelect, setShowActiveQuickSelect] = useState(false);
+
+  const formatDateForDisplayToday = () => {
+    return getJalaliDateStr();
+  };
 
   const [newContractorName, setNewContractorName] = useState("");
   const [newActivityField, setNewActivityField] = useState("");
@@ -265,6 +282,16 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
             مدیریت تراز پیمانکاران
           </button>
           <button
+            onClick={() => setActiveTab("consolidated")}
+            className={`px-4 py-2.5 rounded-lg cursor-pointer transition-all ${
+              activeTab === "consolidated"
+                ? "bg-white text-stone-900 shadow-xs font-bold"
+                : "hover:text-stone-900"
+            }`}
+          >
+            تراز تجمیعی چندقرارداده‌ها
+          </button>
+          <button
             onClick={() => setActiveTab("settings")}
             className={`px-4 py-2.5 rounded-lg cursor-pointer transition-all ${
               activeTab === "settings"
@@ -354,6 +381,212 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                 <span>پیمایش رایانه و بازیابی اطلاعات</span>
               </button>
             </div>
+          </div>
+        </div>
+      ) : activeTab === "consolidated" ? (
+        <div className="space-y-6 text-right animate-fade-in">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200/70 text-right">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="w-5 h-5 text-con-main" />
+              <h2 className="text-md sm:text-lg font-black text-slate-800 tracking-tight">گزارش تجمیعی پیمانکاران چندقراردادی</h2>
+            </div>
+            <p className="text-stone-500 text-xs mt-1">
+              در این بخش، کلیه قراردادها و متمم‌های مربوط به اشخاص یا شرکت‌هایی که چندین قرارداد جداگانه دارند به صورت هوشمند و خودکار تجمیع شده‌اند. شما می‌توانید تراز کلی هر پیمانکار را به صورت یکجا، در کنار جزییات هر قرارداد به تفکیک مشاهده نمایید.
+            </p>
+          </div>
+
+          {/* Search tool for consolidation */}
+          <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="relative w-full max-w-md mr-auto">
+              <Search className="absolute right-3 top-2.5 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="پویش نام پیمانکار یا جزئیات متمم..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-9 py-1.5 bg-slate-50 border border-stone-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-con-main transition-all text-right font-medium"
+              />
+            </div>
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Printer className="w-4 h-4" />
+              <span>پیش‌نمایش و چاپ گزارش تجمیعی</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {(() => {
+              // Grouping contractors by exact trimmed name
+              const grouped: Record<string, Contractor[]> = {};
+              contractors.forEach((c) => {
+                const nameKey = (c.name || "").trim();
+                if (!nameKey) return;
+                if (!grouped[nameKey]) {
+                  grouped[nameKey] = [];
+                }
+                grouped[nameKey].push(c);
+              });
+
+              // Filter based on searchQuery
+              const filteredGroups = Object.entries(grouped).filter(([name, list]) => {
+                if (!searchQuery.trim()) return true;
+                const query = searchQuery.toLowerCase();
+                const nameMatch = name.toLowerCase().includes(query);
+                const fieldMatch = list.some((c) => (c.activity_field || "").toLowerCase().includes(query));
+                const numMatch = list.some((c) => (c.contract_no || "").toLowerCase().includes(query));
+                return nameMatch || fieldMatch || numMatch;
+              });
+
+              if (filteredGroups.length === 0) {
+                return (
+                  <div className="bg-white p-12 text-center border border-stone-200 rounded-2xl">
+                    <Layers className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                    <p className="text-xs text-stone-500">هیچ پیمانکاری همخوان با فیلتر جستجوی شما یافت نشد.</p>
+                  </div>
+                );
+              }
+
+              return filteredGroups.map(([name, list]) => {
+                const isExpanded = !!expandedGroups[name];
+                
+                // Group totals
+                const totalGrossGrp = list.reduce((sum, c) => sum + (c.total_gross || 0), 0);
+                const totalDeductGrp = list.reduce((sum, c) => sum + ((c.total_retention || 0) + (c.total_insurance || 0)), 0);
+                const totalNetGrp = list.reduce((sum, c) => sum + (c.total_net || 0), 0);
+                const totalPaidGrp = list.reduce((sum, c) => sum + (c.total_paid || 0), 0);
+                const totalBalanceGrp = list.reduce((sum, c) => sum + (c.remaining_balance || 0), 0);
+
+                return (
+                  <div key={name} className="bg-white rounded-2xl border border-stone-200/90 shadow-sm overflow-hidden transition-all text-right">
+                    {/* Header bar of the grouped contractor */}
+                    <div 
+                      onClick={() => {
+                        setExpandedGroups(prev => ({ ...prev, [name]: !prev[name] }));
+                      }}
+                      className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/65 transition-colors select-none"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="p-2.5 bg-blue-50 text-con-main rounded-xl mt-0.5">
+                          <Layers className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-slate-800 text-sm">{name}</h3>
+                          <span className="text-[10px] text-stone-500 font-bold bg-stone-100 px-2 py-0.5 rounded-md mt-1 inline-block">
+                            تعداد قراردادها: {convertToPersianDigits(list.length)} پرونده فعال در کارگاه
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Header Financial Bento */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 p-3 rounded-xl border border-stone-100 font-mono text-[11px] shrink-0">
+                        <div>
+                          <div className="text-[9px] text-stone-500 font-sans font-bold">مجموع ناخالص</div>
+                          <div className="font-bold text-slate-700 mt-0.5 text-left">{formatCurrency(totalGrossGrp)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-stone-500 font-sans font-bold font-bold text-rose-700">کسورات تفکیکی</div>
+                          <div className="font-bold text-rose-600 mt-0.5 text-left">-{formatCurrency(totalDeductGrp)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-stone-500 font-sans font-bold text-emerald-700">کل دریافتی</div>
+                          <div className="font-bold text-emerald-700 mt-0.5 text-left">{formatCurrency(totalPaidGrp)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-orange-700 font-sans font-bold">تراز تجمعی طلبکار</div>
+                          <div className="font-black text-orange-700 text-xs mt-0.5 text-left">{formatCurrency(totalBalanceGrp)}</div>
+                        </div>
+                      </div>
+
+                      {/* Fold toggle button */}
+                      <div className="flex justify-end pr-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-stone-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-stone-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expandable detailed area */}
+                    {isExpanded && (
+                      <div className="border-t border-stone-100 p-5 bg-stone-50/10">
+                        <div className="mb-3 text-[10px] text-stone-500 font-bold">زیرمجموعه قراردادهای ثبت‌شده برای {name} :</div>
+                        <div className="overflow-x-auto rounded-xl border border-stone-200 max-w-full bg-white">
+                          <table className="w-full text-right text-xs">
+                            <thead className="bg-slate-50 text-stone-500 font-bold border-b border-stone-150">
+                              <tr>
+                                <th className="p-3 text-center">شناسه سیستم</th>
+                                <th className="p-3">رسته فنی / پروژه</th>
+                                <th className="p-3">شماره / متمم قرارداد</th>
+                                <th className="p-3 text-left">مبلغ اولیه پیمان</th>
+                                <th className="p-3 text-left">صورت‌وضعیت ناخالص</th>
+                                <th className="p-3 text-left text-rose-600">کسورات تفکیکی (۱۵٪)</th>
+                                <th className="p-3 text-left text-con-main font-bold">خالص کارکرد</th>
+                                <th className="p-3 text-left text-emerald-700 font-bold">کل دریافتی مالی‌</th>
+                                <th className="p-3 text-left text-orange-700 font-black">مانده تراز طلب</th>
+                                <th className="p-3 text-center">ورق کالیبره</th>
+                                <th className="p-3 text-center">عملیات</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-150/50">
+                              {list.map((sub) => {
+                                const subPercentage = sub.initial_amount && sub.initial_amount > 0 ? (sub.total_gross / sub.initial_amount) * 100 : 0;
+                                return (
+                                  <tr key={sub.id} className="hover:bg-blue-50/10 transition-colors text-[11px]">
+                                    <td className="p-3 text-center font-mono text-stone-400">{convertToPersianDigits(sub.id)}</td>
+                                    <td className="p-3">
+                                      <span className="px-2 py-0.5 bg-slate-100 text-stone-700 rounded text-[10px] font-semibold">
+                                        {sub.activity_field}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 font-semibold text-slate-700 font-mono">
+                                      {sub.contract_no ? `${convertToPersianDigits(sub.contract_no)}` : "—"}
+                                      {sub.appendix_no ? ` / متمم ${convertToPersianDigits(sub.appendix_no)}` : ""}
+                                    </td>
+                                    <td className="p-3 text-left font-mono text-stone-500">
+                                      {sub.initial_amount && sub.initial_amount > 0 ? (
+                                        <div>
+                                          <div>{formatCurrency(sub.initial_amount)} ریال</div>
+                                          <div className="text-[9px] text-stone-400 mt-0.5">({convertToPersianDigits(subPercentage.toFixed(1))}% پیشرفت)</div>
+                                        </div>
+                                      ) : "ثبت نشده"}
+                                    </td>
+                                    <td className="p-3 text-left font-mono text-stone-700 font-bold">{formatCurrency(sub.total_gross)}</td>
+                                    <td className="p-3 text-left font-mono text-rose-500">-{formatCurrency((sub.total_retention || 0) + (sub.total_insurance || 0))}</td>
+                                    <td className="p-3 text-left font-mono text-con-main font-bold">{formatCurrency(sub.total_net)}</td>
+                                    <td className="p-3 text-left font-mono text-emerald-700 font-bold">{formatCurrency(sub.total_paid)}</td>
+                                    <td className="p-3 text-left font-mono text-orange-700 font-black">{formatCurrency(sub.remaining_balance)}</td>
+                                    <td className="p-3 text-center">
+                                      <button 
+                                        onClick={() => onSelectContractor(sub.id)}
+                                        className="text-con-main hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap"
+                                      >
+                                        مشاهده جزئیات ورق کالیبره
+                                      </button>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <button
+                                        onClick={(e) => handleDeleteContractor(sub.id, e)}
+                                        className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded transition-colors cursor-pointer"
+                                        title="حذف این ردیف قرارداد فرعی"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 inline-block" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       ) : (
@@ -636,11 +869,47 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                   id="new-contractor-name"
                   type="text"
                   required
+                  list="existing-contractors-list"
                   placeholder="مثال: آرماتوربندی برادران فضلی"
                   value={newContractorName}
                   onChange={(e) => setNewContractorName(e.target.value)}
                   className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all text-right"
                 />
+                <datalist id="existing-contractors-list">
+                  {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                {contractors.length > 0 && (
+                  <div className="mt-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setShowActiveQuickSelect(!showActiveQuickSelect)}
+                      className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-all flex items-center gap-1 cursor-pointer inline-flex"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showActiveQuickSelect ? "rotate-180" : ""}`} />
+                      <span>{showActiveQuickSelect ? "پنهان‌سازی مراجع پیمانکاران فعال" : "انتخاب سریع از پیمانکاران فعال کارگاه..."}</span>
+                    </button>
+                    {showActiveQuickSelect && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-1.5 flex flex-wrap gap-1 max-h-24 overflow-y-auto p-2 bg-slate-50 border border-stone-100 rounded-lg select-none"
+                      >
+                        {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => setNewContractorName(name)}
+                            className="px-2 py-0.5 text-[9px] bg-white hover:bg-slate-100 border border-stone-200 hover:border-indigo-500/40 text-stone-700 rounded transition-all cursor-pointer truncate max-w-[150px]"
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -790,6 +1059,305 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Printing Modal for Consolidated Report */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in no-print">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-5xl w-full overflow-hidden text-right no-print flex flex-col max-h-[90vh]"
+          >
+            {/* Modal Header */}
+            <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-400" />
+                <h3 className="font-extrabold text-sm">پیش‌نمایش و تنظیمات چاپ گزارش تجمیعی پیمانکاران</h3>
+              </div>
+              <button 
+                onClick={() => setShowPrintModal(false)}
+                className="text-slate-400 hover:text-white transition-all cursor-pointer text-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Print Settings & Filters */}
+            <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-semibold shrink-0">
+              <div>
+                <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
+                <select
+                  value={printReportType}
+                  onChange={(e) => setPrintReportType(e.target.value as "summary" | "detailed")}
+                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                >
+                  <option value="summary">تجمیعی کلی (خلاصه تراز اشخاص)</option>
+                  <option value="detailed">مشروح تفکیکی (نمایش جزء به جزء قراردادها)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-stone-500 mb-1">فیلتر شخص پیمانکار:</label>
+                <select
+                  value={printContractorFilter}
+                  onChange={(e) => setPrintContractorFilter(e.target.value)}
+                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                >
+                  <option value="all">همه پیمانکاران</option>
+                  {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-stone-500 mb-1">فیلتر رسته فنی / حوزه:</label>
+                <select
+                  value={printActivityFilter}
+                  onChange={(e) => setPrintActivityFilter(e.target.value)}
+                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                >
+                  <option value="all">همه رسته‌های فعال</option>
+                  {Array.from(new Set(contractors.map(c => c.activity_field.trim()))).map(field => (
+                    <option key={field} value={field}>{field}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  onClick={() => window.print()}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>چاپ سند / خروجی PDF</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Preview Sheet Container */}
+            <div className="p-8 overflow-y-auto bg-stone-100 flex-1">
+              <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                  #root, #root-container, #primary-navigation-header, .fixed, .no-print, button, select, input, header, footer {
+                    display: none !important;
+                    visibility: hidden !important;
+                  }
+                  #printable-area-grouped-contractors {
+                    display: block !important;
+                    visibility: visible !important;
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    background: white !important;
+                    padding: 20px !important;
+                    color: black !important;
+                    font-size: 10pt !important;
+                  }
+                  .print-table th {
+                    background-color: #f1f5f9 !important;
+                    color: #000 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                  }
+                }
+              `}} />
+
+              {/* Printable Area */}
+              <div 
+                id="printable-area-grouped-contractors"
+                className="bg-white border border-stone-300 text-slate-800 p-8 rounded-xl space-y-6 shadow-sm max-w-4xl mx-auto text-right"
+              >
+                {/* Letterhead */}
+                <div className="flex justify-between items-center border-b pb-4">
+                  <div className="flex flex-col space-y-1">
+                    <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
+                      گزارش مالی تجمیعی موازنه حساب پیمانکاران جزء
+                    </span>
+                    <span className="text-[10px] text-stone-500 block">پروژه فعال کارگاهی انبارداری و پیمانکاران</span>
+                  </div>
+                  <div className="text-left font-mono text-[10px] text-stone-500 space-y-0.5 animate-pulse">
+                    <div>تاریخ خروجی: {formatDateForDisplayToday()}</div>
+                    <div>وضعیت گزارش: تجمیع چندقراردادی</div>
+                  </div>
+                </div>
+
+                {/* Main Print content */}
+                {(() => {
+                  // Filter contractors according to selection
+                  const filtered = contractors.filter(c => {
+                    const matchName = printContractorFilter === "all" || c.name.trim() === printContractorFilter;
+                    const matchActivity = printActivityFilter === "all" || c.activity_field.trim() === printActivityFilter;
+                    return matchName && matchActivity;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="p-12 text-center text-stone-400">
+                        هیچ اطلاعاتی مطابق با فیلترهای انتخابی یافت نگردید.
+                      </div>
+                    );
+                  }
+
+                  if (printReportType === "summary") {
+                    // Group by contractor name
+                    const grouped: Record<string, Contractor[]> = {};
+                    filtered.forEach(c => {
+                      const name = c.name.trim();
+                      if (!grouped[name]) grouped[name] = [];
+                      grouped[name].push(c);
+                    });
+
+                    let totalGrossGlobal = 0;
+                    let totalDeductGlobal = 0;
+                    let totalNetGlobal = 0;
+                    let totalPaidGlobal = 0;
+                    let totalBalanceGlobal = 0;
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          ساختار گزارش خلاصه تجمیعی تراز کلی اشخاص و شرکتها
+                        </div>
+                        <table className="w-full border-collapse border border-stone-300 text-right text-[10px] print-table">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-705 font-bold border-b border-stone-300">
+                              <th className="border border-stone-300 p-2 text-center w-8">ردیف</th>
+                              <th className="border border-stone-300 p-2">نام پیمانکار تجمعی</th>
+                              <th className="border border-stone-300 p-2 text-center">تعداد تفویض</th>
+                              <th className="border border-stone-300 p-2 text-left">مجموع ناخالص کارکرد</th>
+                              <th className="border border-stone-300 p-2 text-left">مجموع کسورات (سپرده و بیمه)</th>
+                              <th className="border border-stone-300 p-2 text-left">کارکرد خالص قطعی</th>
+                              <th className="border border-stone-300 p-2 text-left">مجموع پرداختی‌های مالی</th>
+                              <th className="border border-stone-300 p-2 text-left font-black">صافی طلبکاری پیمانکار</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(grouped).map(([name, list], index) => {
+                              const gross = list.reduce((sum, c) => sum + (c.total_gross || 0), 0);
+                              const deduct = list.reduce((sum, c) => sum + ((c.total_retention || 0) + (c.total_insurance || 0)), 0);
+                              const net = list.reduce((sum, c) => sum + (c.total_net || 0), 0);
+                              const paid = list.reduce((sum, c) => sum + (c.total_paid || 0), 0);
+                              const balance = list.reduce((sum, c) => sum + (c.remaining_balance || 0), 0);
+
+                              totalGrossGlobal += gross;
+                              totalDeductGlobal += deduct;
+                              totalNetGlobal += net;
+                              totalPaidGlobal += paid;
+                              totalBalanceGlobal += balance;
+
+                              return (
+                                <tr key={name} className="hover:bg-slate-50 transition-colors">
+                                  <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(index + 1)}</td>
+                                  <td className="border border-stone-300 p-2 font-bold">{name}</td>
+                                  <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(list.length)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(gross)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(deduct)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(net)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(paid)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(balance)} ریال</td>
+                                </tr>
+                              );
+                            })}
+                            {/* Totals */}
+                            <tr className="bg-slate-50 font-bold border-t-2 border-stone-400">
+                              <td className="border border-stone-300 p-2 text-center" colSpan={3}>جمع کل گزارش تجمیعی</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(totalGrossGlobal)}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(totalDeductGlobal)}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(totalNetGlobal)}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(totalPaidGlobal)}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(totalBalanceGlobal)} ریال</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  } else {
+                    // Detailed List printout
+                    return (
+                      <div className="space-y-4">
+                        <div className="text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          ساختار گزارش مشروح کلیه قراردادهای ثبت‌شده به همراه الحاقیه‌ها
+                        </div>
+                        <table className="w-full border-collapse border border-stone-300 text-right text-[9px] print-table">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-750 font-bold border-b border-stone-300">
+                              <th className="border border-stone-300 p-2 text-center">شناسه</th>
+                              <th className="border border-stone-300 p-2">نام پیمانکار</th>
+                              <th className="border border-stone-300 p-2">رسته تخصصی</th>
+                              <th className="border border-stone-300 p-2">شماره قرارداد / متمم</th>
+                              <th className="border border-stone-300 p-2 text-left">مبلغ اولیه</th>
+                              <th className="border border-stone-300 p-2 text-left">صورت‌وضعیت</th>
+                              <th className="border border-stone-300 p-2 text-left">کسورات</th>
+                              <th className="border border-stone-300 p-2 text-left">خالص کارکرد</th>
+                              <th className="border border-stone-300 p-2 text-left">کل پرداختی</th>
+                              <th className="border border-stone-300 p-2 text-left font-black">مانده تراز طلب</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map((sub) => (
+                              <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(sub.id)}</td>
+                                <td className="border border-stone-300 p-2 font-bold">{sub.name}</td>
+                                <td className="border border-stone-300 p-2">{sub.activity_field}</td>
+                                <td className="border border-stone-300 p-2 font-mono text-center">
+                                  {sub.contract_no ? `${convertToPersianDigits(sub.contract_no)}` : "—"}
+                                  {sub.appendix_no ? ` / متمم ${convertToPersianDigits(sub.appendix_no)}` : ""}
+                                </td>
+                                <td className="border border-stone-300 p-2 text-left font-mono">{sub.initial_amount ? formatCurrency(sub.initial_amount) : "—"}</td>
+                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_gross)}</td>
+                                <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency((sub.total_retention || 0) + (sub.total_insurance || 0))}</td>
+                                <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(sub.total_net)}</td>
+                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_paid)}</td>
+                                <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(sub.remaining_balance)} ریال</td>
+                              </tr>
+                            ))}
+                            {/* Detailed Totals */}
+                            <tr className="bg-slate-50 font-bold border-t-2 border-stone-400">
+                              <td className="border border-stone-300 p-2 text-center" colSpan={4}>مجموع کل قراردادهای جزء به کار رفته</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.initial_amount||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_gross||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(filtered.reduce((s,c) => s+((c.total_retention||0)+(c.total_insurance||0)), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(filtered.reduce((s,c) => s+(c.total_net||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_paid||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(filtered.reduce((s,c) => s+(c.remaining_balance||0), 0))} ریال</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  }
+                })()}
+
+                {/* Footer Signatures */}
+                <div className="grid grid-cols-3 gap-4 pt-12 text-center text-[10px] font-bold text-slate-600">
+                  <div className="border-t border-dashed border-stone-400 pt-2 pb-8">تهیه‌کننده دایره مالی کارگاه</div>
+                  <div className="border-t border-dashed border-stone-400 pt-2 pb-8">سرپرست عملیات کارگاهی</div>
+                  <div className="border-t border-dashed border-stone-400 pt-2 pb-8">مدیر مالی و اداری پروژه</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="p-4 bg-slate-900 border-t border-stone-850 flex justify-end gap-3 shrink-0 no-print">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="bg-stone-800 hover:bg-stone-750 text-slate-300 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-700"
+              >
+                بستن پنجره گزارش
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                <span>شروع فرآیند چاپ</span>
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

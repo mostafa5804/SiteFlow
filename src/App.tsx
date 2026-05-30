@@ -45,44 +45,14 @@ import {
   Printer,
   ShieldAlert
 } from "lucide-react";
-import { formatCurrency, convertToPersianDigits } from "./utils/formatters";
+import { formatCurrency, convertToPersianDigits, getJalaliDateStr } from "./utils/formatters";
 
 export function getNicePersianDate() {
-  try {
-    const d = new Date();
-    const formatted = new Intl.DateTimeFormat('fa-IR', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
-    }).format(d);
-    return formatted
-      .replace(/[،,،\-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  } catch (err) {
-    return "شنبه ۹ خرداد ۱۴۰۵";
-  }
+  return getJalaliDateStr();
 }
 
 function getJalaliDateStrToday(): string {
-  try {
-    const d = new Date();
-    const formatter = new Intl.DateTimeFormat('fa-IR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      calendar: 'persian'
-    });
-    const parts = formatter.format(d);
-    return parts
-      .replace(/[۰-۹]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 1776))
-      .replace(/[،,\-\s]/g, '/')
-      .replace(/\/+/g, '/')
-      .trim();
-  } catch (err) {
-    return "1405/03/09";
-  }
+  return getJalaliDateStr();
 }
 
 function jalaliToDays(dateStr: string): number {
