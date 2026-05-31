@@ -1280,15 +1280,35 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                     );
                   } else {
                     // Detailed List printout
+                    const sortedFiltered = [...filtered].sort((a, b) => a.name.trim().localeCompare(b.name.trim(), "fa"));
+
+                    // Calculate spans for grouped contractors
+                    const contractorRowsSpans: Record<number, number> = {};
+                    let lastContractor = "";
+                    let lastStartIndex = -1;
+
+                    sortedFiltered.forEach((item, index) => {
+                      const trimmedName = item.name.trim();
+                      if (trimmedName !== lastContractor) {
+                        lastContractor = trimmedName;
+                        lastStartIndex = index;
+                        contractorRowsSpans[index] = 1;
+                      } else {
+                        contractorRowsSpans[lastStartIndex]++;
+                      }
+                    });
+
+                    let groupNo = 0;
+
                     return (
                       <div className="space-y-4">
                         <div className="text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          ساختار گزارش مشروح کلیه قراردادهای ثبت‌شده به همراه الحاقیه‌ها
+                          ساختار گزارش مشروح کلیه قراردادهای ثبت‌شده به همراه الحاقیه‌ها (با ادغام واحدهای دارای پیمانکار مشترک)
                         </div>
                         <table className="w-full border-collapse border border-stone-300 text-right text-[9px] print-table">
                           <thead>
                             <tr className="bg-slate-100 text-slate-750 font-bold border-b border-stone-300">
-                              <th className="border border-stone-300 p-2 text-center">شناسه</th>
+                              <th className="border border-stone-300 p-2 text-center w-12">شناسه</th>
                               <th className="border border-stone-300 p-2">نام پیمانکار</th>
                               <th className="border border-stone-300 p-2">رسته تخصصی</th>
                               <th className="border border-stone-300 p-2">شماره قرارداد / متمم</th>
@@ -1301,32 +1321,46 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                             </tr>
                           </thead>
                           <tbody>
-                            {filtered.map((sub) => (
-                              <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(sub.id)}</td>
-                                <td className="border border-stone-300 p-2 font-bold">{sub.name}</td>
-                                <td className="border border-stone-300 p-2">{sub.activity_field}</td>
-                                <td className="border border-stone-300 p-2 font-mono text-center">
-                                  {sub.contract_no ? `${convertToPersianDigits(sub.contract_no)}` : "—"}
-                                  {sub.appendix_no ? ` / متمم ${convertToPersianDigits(sub.appendix_no)}` : ""}
-                                </td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{sub.initial_amount ? formatCurrency(sub.initial_amount) : "—"}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_gross)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency((sub.total_retention || 0) + (sub.total_insurance || 0))}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(sub.total_net)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_paid)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(sub.remaining_balance)} ریال</td>
-                              </tr>
-                            ))}
+                            {sortedFiltered.map((sub, index) => {
+                              const isFirst = contractorRowsSpans[index] !== undefined;
+                              if (isFirst) {
+                                groupNo++;
+                              }
+                              return (
+                                <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                                  {isFirst ? (
+                                    <>
+                                      <td className="border border-stone-300 p-2 text-center font-mono font-bold bg-slate-50/50" rowSpan={contractorRowsSpans[index]}>
+                                        {convertToPersianDigits(groupNo)}
+                                      </td>
+                                      <td className="border border-stone-300 p-2 font-bold bg-slate-50/40" rowSpan={contractorRowsSpans[index]}>
+                                        {sub.name}
+                                      </td>
+                                    </>
+                                  ) : null}
+                                  <td className="border border-stone-300 p-2">{sub.activity_field}</td>
+                                  <td className="border border-stone-300 p-2 font-mono text-center">
+                                    {sub.contract_no ? `${convertToPersianDigits(sub.contract_no)}` : "—"}
+                                    {sub.appendix_no ? ` / متمم ${convertToPersianDigits(sub.appendix_no)}` : ""}
+                                  </td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{sub.initial_amount ? formatCurrency(sub.initial_amount) : "—"}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_gross)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency((sub.total_retention || 0) + (sub.total_insurance || 0))}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(sub.total_net)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sub.total_paid)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(sub.remaining_balance)}</td>
+                                </tr>
+                              );
+                            })}
                             {/* Detailed Totals */}
                             <tr className="bg-slate-50 font-bold border-t-2 border-stone-400">
                               <td className="border border-stone-300 p-2 text-center" colSpan={4}>مجموع کل قراردادهای جزء به کار رفته</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.initial_amount||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_gross||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(filtered.reduce((s,c) => s+((c.total_retention||0)+(c.total_insurance||0)), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(filtered.reduce((s,c) => s+(c.total_net||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_paid||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(filtered.reduce((s,c) => s+(c.remaining_balance||0), 0))} ریال</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.initial_amount||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_gross||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(sortedFiltered.reduce((s,c) => s+((c.total_retention||0)+(c.total_insurance||0)), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_net||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_paid||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.remaining_balance||0), 0))}</td>
                             </tr>
                           </tbody>
                         </table>

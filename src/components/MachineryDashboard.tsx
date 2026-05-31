@@ -22,6 +22,7 @@ import {
 import { Machine } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber, getJalaliDateStr } from "../utils/formatters";
 import { exportMachineryToExcel } from "../utils/excelExport";
+import { SleekLicensePlate } from "./SleekLicensePlate";
 
 interface MachineryDashboardProps {
   onBack: () => void;
@@ -477,15 +478,15 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50/50 p-3 rounded-xl border border-stone-100 font-mono text-[11px] shrink-0">
                         <div>
                           <div className="text-[9px] text-stone-500 font-sans font-bold">کل کارکرد ناوگان</div>
-                          <div className="font-bold text-slate-700 mt-0.5 text-left">{formatCurrency(totalCalculatedGrp)} ریال</div>
+                          <div className="font-bold text-slate-700 mt-0.5 text-left">{formatCurrency(totalCalculatedGrp)}</div>
                         </div>
                         <div>
                           <div className="text-[9px] text-stone-500 font-sans font-bold">مجموع کل دریافتی</div>
-                          <div className="font-bold text-emerald-700 mt-0.5 text-left">{formatCurrency(totalPaidGrp)} ریال</div>
+                          <div className="font-bold text-emerald-700 mt-0.5 text-left">{formatCurrency(totalPaidGrp)}</div>
                         </div>
                         <div>
                           <div className="text-[9px] text-orange-700 font-sans font-bold">باقیمانده موازنه طلبکاری</div>
-                          <div className="font-black text-orange-700 text-xs mt-0.5 text-left">{formatCurrency(totalBalanceGrp)} ریال</div>
+                          <div className="font-black text-orange-700 text-xs mt-0.5 text-left">{formatCurrency(totalBalanceGrp)}</div>
                         </div>
                       </div>
 
@@ -524,11 +525,15 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                               {list.map((m) => (
                                 <tr key={m.id} className="hover:bg-blue-50/10 transition-colors text-[11px]">
                                   <td className="p-3 text-center font-mono text-stone-400">{convertToPersianDigits(m.id)}</td>
-                                  <td className="p-3 font-bold text-slate-800">
-                                    {m.machine_type}
+                                  <td className="p-3 font-bold text-slate-800 max-w-[150px] truncate" title={m.machine_type}>
+                                    <span className="block truncate max-w-full text-right">{m.machine_type}</span>
                                   </td>
-                                  <td className="p-3 font-semibold text-stone-600 font-mono">
-                                    {m.license_plate ? convertToPersianDigits(m.license_plate) : "بدون پلاک"}
+                                  <td className="p-3">
+                                    {m.license_plate ? (
+                                      <SleekLicensePlate plate={m.license_plate} />
+                                    ) : (
+                                      <span className="text-stone-400 italic">بدون پلاک</span>
+                                    )}
                                   </td>
                                   <td className="p-3 font-medium">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -539,13 +544,13 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                                       {m.contract_type === "hourly" ? "ساعتی" : "ماهانه مستقیم / روزی"}
                                     </span>
                                   </td>
-                                  <td className="p-3 text-left font-mono">{formatCurrency(m.base_rent)} ریال</td>
+                                  <td className="p-3 text-left font-mono">{formatCurrency(m.base_rent)}</td>
                                   <td className="p-3 text-left font-mono text-stone-600 font-bold">
                                     {convertToPersianDigits(formatNumber(m.total_performance))} {m.contract_type === "hourly" ? "ساعت" : "روز"}
                                   </td>
-                                  <td className="p-3 text-left font-mono text-slate-700 font-bold">{formatCurrency(m.total_calculated)} ریال</td>
-                                  <td className="p-3 text-left font-mono text-emerald-700 font-semibold">{formatCurrency(m.total_paid)} ریال</td>
-                                  <td className="p-3 text-left font-mono text-orange-700 font-black">{formatCurrency(m.remaining_balance)} ریال</td>
+                                  <td className="p-3 text-left font-mono text-slate-700 font-bold">{formatCurrency(m.total_calculated)}</td>
+                                  <td className="p-3 text-left font-mono text-emerald-700 font-semibold">{formatCurrency(m.total_paid)}</td>
+                                  <td className="p-3 text-left font-mono text-orange-700 font-black">{formatCurrency(m.remaining_balance)}</td>
                                   <td className="p-3 text-center">
                                     <button 
                                       onClick={() => onSelectMachine(m.id)}
@@ -766,7 +771,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
             <table className="w-full text-right">
               <thead className="bg-slate-50 text-stone-500 font-bold border-b border-stone-100">
                 <tr>
-                  <th className="py-4 px-6 text-center">ردیف</th>
+                  <th className="py-4 px-2 text-center w-12">ردیف</th>
                   <th className="py-4 px-6">نام مالک دستگاه</th>
                   <th className="py-4 px-6">مدل و تجهیز</th>
                   <th className="py-4 px-6">شماره پلاک شهربانی</th>
@@ -786,22 +791,19 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                     onClick={() => onSelectMachine(m.id)}
                     className="hover:bg-orange-50/10 transition-all cursor-pointer group"
                   >
-                    <td className="py-4 px-6 text-center text-stone-400 font-mono text-[11px]">{convertToPersianDigits(index + 1)}</td>
+                    <td className="py-4 px-2 text-center text-stone-400 font-mono text-[11px] w-12">{convertToPersianDigits(index + 1)}</td>
                     <td className="py-4 px-6 font-bold text-slate-800 group-hover:text-mac-main transition-colors">{m.owner_name}</td>
                     <td className="py-4 px-6 font-bold text-stone-700">
-                      <div className="flex items-center gap-2">
-                        <span>{m.machine_type}</span>
-                        {m.machine_category === "سبک" ? (
-                          <span className="bg-cyan-50 text-cyan-700 text-[10px] font-black px-1.5 py-0.5 rounded border border-cyan-200/50">سبک</span>
-                        ) : (
-                          <span className="bg-indigo-50 text-indigo-700 text-[10px] font-black px-1.5 py-0.5 rounded border border-indigo-200/50">سنگین</span>
-                        )}
+                      <div className="truncate max-w-[170px] whitespace-nowrap block" title={m.machine_type}>
+                        {m.machine_type}
                       </div>
                     </td>
-                    <td className="py-4 px-6">
-                      <span className="bg-slate-100 text-stone-850 font-serif border border-stone-200 rounded px-2 py-0.5 text-[11px]">
-                        {m.license_plate}
-                      </span>
+                    <td className="py-4 px-6 text-center">
+                      {m.license_plate ? (
+                        <SleekLicensePlate plate={m.license_plate} />
+                      ) : (
+                        <span className="text-stone-400 italic">بدون پلاک</span>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
@@ -1269,7 +1271,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                                   <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(list.length)} دستگاه</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(gross)}</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(paid)}</td>
-                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(balance)} ریال</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(balance)}</td>
                                 </tr>
                               );
                             })}
@@ -1278,7 +1280,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                               <td className="border border-stone-300 p-2 text-center" colSpan={3}>جمع کل گزارش تجمیعی ناوگان</td>
                               <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(totalGrossGlobal)}</td>
                               <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(totalPaidGlobal)}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-emerald-800">{formatCurrency(totalBalanceGlobal)} ریال</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-emerald-800">{formatCurrency(totalBalanceGlobal)}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1286,15 +1288,35 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                     );
                   } else {
                     // Detailed List printout
+                    const sortedFiltered = [...filtered].sort((a, b) => a.owner_name.trim().localeCompare(b.owner_name.trim(), "fa"));
+
+                    // Calculate spans for grouped owners
+                    const ownerRowsSpans: Record<number, number> = {};
+                    let lastOwner = "";
+                    let lastStartIndex = -1;
+
+                    sortedFiltered.forEach((item, index) => {
+                      const trimmedOwner = item.owner_name.trim();
+                      if (trimmedOwner !== lastOwner) {
+                        lastOwner = trimmedOwner;
+                        lastStartIndex = index;
+                        ownerRowsSpans[index] = 1;
+                      } else {
+                        ownerRowsSpans[lastStartIndex]++;
+                      }
+                    });
+
+                    let groupNo = 0;
+
                     return (
                       <div className="space-y-4">
                         <div className="text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          ساختار گزارش تفصیلی و سیاهه‌بندی جزء به جزء کل خودروهای ناوگان فعال
+                          ساختار گزارش تفصیلی و سیاهه‌بندی جزء به جزء کل خودروهای ناوگان فعال (با ادغام واحدهای دارای مالک مشترک)
                         </div>
                         <table className="w-full border-collapse border border-stone-300 text-right text-[9px] print-table">
                           <thead>
                             <tr className="bg-slate-100 text-slate-750 font-bold border-b border-stone-300">
-                              <th className="border border-stone-300 p-2 text-center">شناسه</th>
+                              <th className="border border-stone-300 p-2 text-center w-12">شناسه</th>
                               <th className="border border-stone-300 p-2">نام مالک</th>
                               <th className="border border-stone-300 p-2">نوع دستگاه و مدل</th>
                               <th className="border border-stone-300 p-2">شماره پلاک شهربانی</th>
@@ -1306,28 +1328,50 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                             </tr>
                           </thead>
                           <tbody>
-                            {filtered.map((item) => (
-                              <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="border border-stone-300 p-2 text-center font-mono">{convertToPersianDigits(item.id)}</td>
-                                <td className="border border-stone-300 p-2 font-bold">{item.owner_name}</td>
-                                <td className="border border-stone-300 p-2 font-semibold">{item.machine_type}</td>
-                                <td className="border border-stone-300 p-2 text-center">{convertToPersianDigits(item.license_plate)}</td>
-                                <td className="border border-stone-300 p-2 text-center">
-                                  {item.contract_type === "hourly" ? "ساعتی" : "روزانه/ماهانه"}
-                                </td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.base_rent)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_performance)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_paid)}</td>
-                                <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(item.remaining_balance)} ریال</td>
-                              </tr>
-                            ))}
+                            {sortedFiltered.map((item, index) => {
+                              const isFirst = ownerRowsSpans[index] !== undefined;
+                              if (isFirst) {
+                                groupNo++;
+                              }
+                              return (
+                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                  {isFirst ? (
+                                    <>
+                                      <td className="border border-stone-300 p-2 text-center font-mono font-bold bg-slate-50/50" rowSpan={ownerRowsSpans[index]}>
+                                        {convertToPersianDigits(groupNo)}
+                                      </td>
+                                      <td className="border border-stone-300 p-2 font-bold bg-slate-50/40" rowSpan={ownerRowsSpans[index]}>
+                                        {item.owner_name}
+                                      </td>
+                                    </>
+                                  ) : null}
+                                  <td className="border border-stone-300 p-2 font-semibold truncate max-w-[150px]" title={item.machine_type}>{item.machine_type}</td>
+                                  <td className="border border-stone-300 p-2 text-center align-middle">
+                                    {item.license_plate ? (
+                                      <div className="flex justify-center items-center">
+                                        <SleekLicensePlate plate={item.license_plate} />
+                                      </div>
+                                    ) : (
+                                      <span className="text-stone-400 italic">بدون پلاک</span>
+                                    )}
+                                  </td>
+                                  <td className="border border-stone-300 p-2 text-center">
+                                    {item.contract_type === "hourly" ? "ساعتی" : item.contract_type === "daily" ? "روزمزد روزانه" : "ماهانه"}
+                                  </td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.base_rent)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_performance)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_paid)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(item.remaining_balance)}</td>
+                                </tr>
+                              );
+                            })}
                             {/* Detailed Totals */}
                             <tr className="bg-slate-50 font-bold border-t-2 border-stone-400">
                               <td className="border border-stone-300 p-2 text-center" colSpan={5}>جمع کل ناوگان کارگاه</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.base_rent||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_performance||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(filtered.reduce((s,c) => s+(c.total_paid || 0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-emerald-800">{formatCurrency(filtered.reduce((s,c) => s+(c.remaining_balance||0), 0))} ریال</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.base_rent||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_performance||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_paid || 0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-emerald-800">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.remaining_balance||0), 0))}</td>
                             </tr>
                           </tbody>
                         </table>

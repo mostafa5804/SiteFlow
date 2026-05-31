@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { MachineProfile } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber } from "../utils/formatters";
+import { SleekLicensePlate } from "./SleekLicensePlate";
 
 interface MachineryProfileViewProps {
   machineId: number;
@@ -412,7 +413,12 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
           <div>
             <h1 className="text-xl font-black text-slate-950">{profile.machine_type}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs">
-              <span className="bg-slate-100 text-stone-850 font-serif border border-stone-200 rounded px-2.5 py-1 font-bold">پلاک: {profile.license_plate}</span>
+              {profile.license_plate ? (
+                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-stone-850 border border-stone-200 rounded px-2.5 py-0.5 font-bold">
+                  <span>پلاک:</span>
+                  <SleekLicensePlate plate={profile.license_plate} />
+                </span>
+              ) : null}
               <span className="text-stone-500">مالک: <span className="font-bold text-slate-800">{profile.owner_name}</span></span>
               <span className="bg-orange-50 text-orange-850 border border-orange-200 px-2.5 py-0.5 rounded-full font-bold">
                 محاسبه: {profile.contract_type === "hourly" ? "قرارداد ساعتی" : profile.contract_type === "daily" ? "قرارداد روزانه" : "قرارداد ماهانه"}
@@ -1062,13 +1068,19 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 </div>
                 <div>
                   <span className="text-[10px] text-stone-400 block mb-0.5">مدل دستگاه و تجهیز:</span>
-                  <strong className="text-stone-850 font-bold">
-                    {profile.machine_type} ({profile.machine_category || "سنگین"})
+                  <strong className="text-stone-850 font-bold block truncate" title={profile.machine_type}>
+                    {profile.machine_type}
                   </strong>
                 </div>
                 <div>
                   <span className="text-[10px] text-stone-400 block mb-0.5">شماره پلاک شهربانی:</span>
-                  <strong className="text-stone-850 font-serif font-bold">{profile.license_plate}</strong>
+                  <div className="pt-0.5">
+                    {profile.license_plate ? (
+                      <SleekLicensePlate plate={profile.license_plate} />
+                    ) : (
+                      <strong className="text-stone-850 font-bold">-</strong>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-[10px] text-stone-400 block mb-0.5">مبنای قرارداد و نرخ پایه:</span>
