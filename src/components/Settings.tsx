@@ -14,9 +14,9 @@ export default function Settings({ settings, onSaveSettings, onResetDatabase }: 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form states
-  const [enterpriseName, setEnterpriseName] = useState("دفتر فنی الوان");
-  const [logoText, setLogoText] = useState("الوان");
-  const [projectName, setProjectName] = useState("پروژه مسکن ملی پرند");
+  const [enterpriseName, setEnterpriseName] = useState("دفتر فنی");
+  const [logoText, setLogoText] = useState("فنی");
+  const [projectName, setProjectName] = useState("نرم افزار کارگاهی");
   const [contractWarningDays, setContractWarningDays] = useState("30");
   const [logoImg, setLogoImg] = useState("");
 
@@ -30,9 +30,9 @@ export default function Settings({ settings, onSaveSettings, onResetDatabase }: 
   // Sync props data to form states on mount or change
   useEffect(() => {
     if (settings) {
-      setEnterpriseName(settings.enterprise_name ?? "دفتر فنی الوان");
-      setLogoText(settings.logo_text ?? "الوان");
-      setProjectName(settings.project_name ?? "پروژه مسکن ملی پرند");
+      setEnterpriseName(settings.enterprise_name ?? "دفتر فنی");
+      setLogoText(settings.logo_text ?? "فنی");
+      setProjectName(settings.project_name ?? "نرم افزار کارگاهی");
       setContractWarningDays(settings.contract_warning_days ?? "30");
       setLogoImg(settings.logo_img ?? "");
     }
@@ -234,7 +234,7 @@ export default function Settings({ settings, onSaveSettings, onResetDatabase }: 
               type="text"
               value={enterpriseName}
               onChange={(e) => setEnterpriseName(e.target.value)}
-              placeholder="مثلاً: دفتر فنی الوان"
+              placeholder="مثلاً: دفتر فنی"
               className="w-full px-3 py-2.5 bg-[#fcfbfa] border border-stone-200 focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-xl text-xs font-bold text-stone-850 text-right"
             />
           </div>
@@ -246,7 +246,7 @@ export default function Settings({ settings, onSaveSettings, onResetDatabase }: 
               type="text"
               value={logoText}
               onChange={(e) => setLogoText(e.target.value)}
-              placeholder="مثلاً: الوان"
+              placeholder="مثلاً: فنی"
               className="w-full px-3 py-2.5 bg-[#fcfbfa] border border-stone-200 focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-xl text-xs font-bold text-stone-850 text-right"
             />
           </div>
@@ -258,7 +258,7 @@ export default function Settings({ settings, onSaveSettings, onResetDatabase }: 
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="مثلاً: پروژه مسکن ملی پرند"
+              placeholder="مثلاً: نرم افزار کارگاهی"
               className="w-full px-3 py-2.5 bg-[#fcfbfa] border border-stone-200 focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-xl text-xs font-bold text-stone-850 text-right"
             />
           </div>

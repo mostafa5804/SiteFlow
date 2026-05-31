@@ -154,9 +154,9 @@ function initDbTablesAndMigrations(databaseInstance: typeof db) {
   insertSetting.run("doc_prefix", "");
   insertSetting.run("doc_start_no", "1");
   insertSetting.run("product_prefix", "PR-");
-  insertSetting.run("enterprise_name", "دفتر فنی الوان");
-  insertSetting.run("logo_text", "الوان");
-  insertSetting.run("project_name", "پروژه مسکن ملی پرند");
+  insertSetting.run("enterprise_name", "دفتر فنی");
+  insertSetting.run("logo_text", "فنی");
+  insertSetting.run("project_name", "نرم افزار کارگاهی");
 
   // Safe migrations to add columns if database already exists without them
   try { databaseInstance.exec("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'عمومی'"); } catch (e) {}
@@ -187,6 +187,8 @@ function initDbTablesAndMigrations(databaseInstance: typeof db) {
   try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN appendix_rent REAL DEFAULT NULL"); } catch (e) {}
   try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN appendix_start_month INTEGER DEFAULT NULL"); } catch (e) {}
   try { databaseInstance.exec("ALTER TABLE machine_performances ADD COLUMN year INTEGER DEFAULT 1405"); } catch (e) {}
+  try { databaseInstance.exec("ALTER TABLE contractors ADD COLUMN is_archived INTEGER DEFAULT 0"); } catch (e) {}
+  try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN is_archived INTEGER DEFAULT 0"); } catch (e) {}
   try { databaseInstance.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('logo_img', '')").run(); } catch (e) {}
 
   // Seed initial data if tables are empty
@@ -842,6 +844,120 @@ app.post("/api/notifications", (req, res) => {
 });
 
 
+function getJalaliMonth(dateStr: string): number {
+  if (!dateStr) return 1;
+  const en = dateStr.replace(/[۰-۹]/g, d => String.fromCharCode(d.charCodeAt(0) - 1776));
+  const parts = en.split("/");
+  if (parts.length >= 2) {
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(m) && m >= 1 && m <= 12) return m;
+  }
+  return 1;
+}
+
+// REPORTING & ANALYTICS SUMMARY
+app.get("/api/reports/summary", (req, res) => {
+  try {
+    const months = [
+      { index: 1, name: "فروردین" },
+      { index: 2, name: "اردیبهشت" },
+      { index: 3, name: "خرداد" },
+      { index: 4, name: "تیر" },
+      { index: 5, name: "مرداد" },
+      { index: 6, name: "شهریور" },
+      { index: 7, name: "مهر" },
+      { index: 8, name: "آبان" },
+      { index: 9, name: "آذر" },
+      { index: 10, name: "دی" },
+      { index: 11, name: "بهمن" },
+      { index: 12, name: "اسفند" }
+    ];
+
+    const result = months.map(m => {
+      // 1. Machinery costs for this month index
+      const machTotalRow = db.prepare(`
+        SELECT COALESCE(SUM(total_calculated_amount), 0) as total 
+        FROM machine_performances 
+        WHERE month_index = ?
+      `).get(m.index) as { total: number };
+
+      const machHeavyRow = db.prepare(`
+        SELECT COALESCE(SUM(p.total_calculated_amount), 0) as total 
+        FROM machine_performances p
+        JOIN machinery mac ON p.machine_id = mac.id
+        WHERE p.month_index = ? AND mac.machine_category = 'سنگین'
+      `).get(m.index) as { total: number };
+
+      const machLightRow = db.prepare(`
+        SELECT COALESCE(SUM(p.total_calculated_amount), 0) as total 
+        FROM machine_performances p
+        JOIN machinery mac ON p.machine_id = mac.id
+        WHERE p.month_index = ? AND mac.machine_category = 'سبک'
+      `).get(m.index) as { total: number };
+
+      // 2. Contractor payments for this month index
+      const allConPayments = db.prepare("SELECT amount, payment_date FROM contractor_payments").all() as any[];
+      const conPaid = allConPayments.reduce((sum, p) => {
+        if (getJalaliMonth(p.payment_date) === m.index) {
+          return sum + (p.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+      // 3. Machinery payments for this month index
+      const allMacPayments = db.prepare("SELECT amount, payment_date FROM machine_payments").all() as any[];
+      const macPaid = allMacPayments.reduce((sum, p) => {
+        if (getJalaliMonth(p.payment_date) === m.index) {
+          return sum + (p.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+      // 4. Contractor work gross done in this month index
+      // Since contractor invoices don't have a date, we estimate monthly work using of invoice index sequence:
+      // First invoice = Month 1, second = Month 2, etc, or mapping them sequentially
+      const allConInvoices = db.prepare("SELECT id, contractor_id, gross_amount, net_amount FROM contractor_invoices").all() as any[];
+      let conInvoicedNet = 0;
+      
+      // For each contractor, count invoices and associate index
+      const contractorInvoicesMap: Record<number, any[]> = {};
+      allConInvoices.forEach(inv => {
+        if (!contractorInvoicesMap[inv.contractor_id]) {
+          contractorInvoicesMap[inv.contractor_id] = [];
+        }
+        contractorInvoicesMap[inv.contractor_id].push(inv);
+      });
+      
+      // Sum invoices where sequence matches month index (sequence is 1-indexed)
+      Object.keys(contractorInvoicesMap).forEach(cid => {
+        const contractorId = Number(cid);
+        const invList = contractorInvoicesMap[contractorId].sort((a, b) => a.id - b.id);
+        const invForThisMonth = invList[m.index - 1]; // first invoice is Month 1 (Farvardin)
+        if (invForThisMonth) {
+          conInvoicedNet += (invForThisMonth.net_amount || 0);
+        }
+      });
+
+      return {
+        ...m,
+        machinery_total: machTotalRow.total,
+        machinery_heavy: machHeavyRow.total,
+        machinery_light: machLightRow.total,
+        contractor_payments: conPaid,
+        machinery_payments: macPaid,
+        contractor_work: conInvoicedNet,
+        combined_payments: conPaid + macPaid,
+        combined_cost: machTotalRow.total + conInvoicedNet
+      };
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // 6. CONTRACTORS
 app.get("/api/contractors", (req, res) => {
   try {
@@ -1382,6 +1498,28 @@ app.delete("/api/machinery/:id", (req, res) => {
     const { id } = req.params;
     db.prepare("DELETE FROM machinery WHERE id = ?").run(id);
     res.json({ success: true, message: "دستگاه و کلیه کارکردها و اسناد پرداخت متناظر با آن حذف شدند." });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/contractors/:id/archive", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_archived } = req.body;
+    db.prepare("UPDATE contractors SET is_archived = ? WHERE id = ?").run(is_archived ? 1 : 0, id);
+    res.json({ success: true, message: "وضعیت بایگانی پیمانکار جزء با موفقیت به روز گردید." });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/machinery/:id/archive", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_archived } = req.body;
+    db.prepare("UPDATE machinery SET is_archived = ? WHERE id = ?").run(is_archived ? 1 : 0, id);
+    res.json({ success: true, message: "وضعیت بایگانی دستگاه با موفقیت به روز گردید." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -59,6 +59,7 @@ export interface Contractor {
   appendix_no?: string;
   contract_start?: string;
   contract_end?: string;
+  is_archived?: number;
 }
 
 export interface ContractorInvoice {
@@ -93,6 +94,7 @@ export interface Machine {
   total_calculated: number;
   total_paid: number;
   remaining_balance: number;
+  is_archived?: number;
 }
 
 export interface MachinePerformance {

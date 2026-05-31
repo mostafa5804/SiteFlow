@@ -10,7 +10,9 @@ import {
   Coins, 
   DollarSign, 
   FileText,
-  Printer
+  Printer,
+  Archive,
+  ArchiveRestore
 } from "lucide-react";
 import { MachineProfile } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber } from "../utils/formatters";
@@ -243,6 +245,25 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
     }
   };
 
+  const handleToggleArchive = async () => {
+    if (!profile) return;
+    const actionName = profile.is_archived ? "خروج از بایگانی" : "بایگانی (آرشیو)";
+    if (!confirm(`آیا اطمینان دارید که می‌خواهید دستگاه جاری را ${actionName} نمایید؟`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/machinery/${machineId}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !profile.is_archived ? 1 : 0 })
+      });
+      if (!res.ok) throw new Error("خطا در تغییر وضعیت بایگانی دستگاه");
+      fetchProfile();
+    } catch (err: any) {
+      alert(err.message || "مشکلی رخ داده است.");
+    }
+  };
+
   const handleAddPerformance = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!performanceValue || parseFloat(performanceValue) <= 0) {
@@ -438,14 +459,45 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                   ⚙️ تصحیح سال کبیسه فعال
                 </span>
               ) : null}
+              {profile.is_archived ? (
+                <span className="bg-amber-100 text-amber-800 border border-amber-300 rounded px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  بایگانی شده (آرشیو)
+                </span>
+              ) : (
+                <span className="bg-emerald-50 text-emerald-850 border border-emerald-200 rounded px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  پرونده فعال کارگاه
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 self-stretch md:self-auto justify-between md:justify-start">
+          <button
+            onClick={handleToggleArchive}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+              profile.is_archived
+                ? "bg-amber-50 text-amber-850 hover:bg-amber-100 border-amber-200"
+                : "bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700"
+            }`}
+          >
+            {profile.is_archived ? (
+              <>
+                <ArchiveRestore className="w-3.5 h-3.5" />
+                <span>خروج دستگاه از آرشیو</span>
+              </>
+            ) : (
+              <>
+                <Archive className="w-3.5 h-3.5" />
+                <span>بایگانی (آرشیو) دستگاه</span>
+              </>
+            )}
+          </button>
           <button 
             onClick={startEditMachine}
-            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-900"
           >
             📂 ویرایش مشخصات دستگاه
           </button>
@@ -1040,7 +1092,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 {/* Right col: Office brand */}
                 <div className="flex flex-col space-y-1">
                   <span className="font-black text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
-                    {settings.enterprise_name || "دفتر فنی الوان"}
+                    {settings.enterprise_name || "دفتر فنی"}
                   </span>
                   <span className="text-[10px] text-stone-500 pr-2.5">سامانه ردیابی هوشمند ماشین‌آلات کارگاهی</span>
                 </div>
@@ -1049,7 +1101,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 <div className="flex flex-col items-center space-y-2 text-center">
                   <span className="font-black text-base tracking-tight text-slate-950 font-bold">خلاصه تراز صورت وضعیت و کارکرد ماشین‌آلات</span>
                   <span className="text-[10px] bg-neutral-100 px-3 py-1 rounded-full font-bold">
-                    {settings.project_name || "پروژه مسکن ملی پرند"}
+                    {settings.project_name || "نرم افزار کارگاهی"}
                   </span>
                 </div>
 

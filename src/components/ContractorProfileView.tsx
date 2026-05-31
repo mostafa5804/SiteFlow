@@ -11,7 +11,9 @@ import {
   DollarSign, 
   Calendar, 
   FileText,
-  Printer
+  Printer,
+  Archive,
+  ArchiveRestore
 } from "lucide-react";
 import { ContractorProfile } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber } from "../utils/formatters";
@@ -118,6 +120,25 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
       alert(err.message || "مشکلی رخ داده است.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleArchive = async () => {
+    if (!profile) return;
+    const actionName = profile.is_archived ? "خروج از بایگانی" : "بایگانی (آرشیو)";
+    if (!confirm(`آیا اطمینان دارید که می‌خواهید پروژه/پیمانکار جاری را ${actionName} نمایید؟`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/contractors/${contractorId}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !profile.is_archived ? 1 : 0 })
+      });
+      if (!res.ok) throw new Error("خطا در به روزرسانی بایگانی");
+      fetchProfile();
+    } catch (err: any) {
+      alert(err.message || "مشکلی رخ داده است.");
     }
   };
 
@@ -242,9 +263,26 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
       
       setInvoiceNumber("");
       setGrossAmount("");
-      setIsInvoiceFinal(false);
       setInvoiceConfirmCount(0);
       setShowInvoiceModal(false);
+
+      if (isInvoiceFinal) {
+        const shouldArchive = confirm(
+          `این صورت‌وضعیت به عنوان نهایی و قطعی کارگاه با موفقیت ثبت شد.\nآیا مایل هستید پرونده پیمانکار "${profile?.name}" نیز هم‌اکنون بایگانی (آرشیو) شود تا پرونده او بسته شده و دیگر در ترازهای فعال به صورت پیش‌فرض نمایش داده نشود؟`
+        );
+        if (shouldArchive) {
+          try {
+            await fetch(`/api/contractors/${contractorId}/archive`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ is_archived: 1 })
+            });
+          } catch (e) {
+            console.error("خطا در بایگانی اتوماتیک پیمانکار", e);
+          }
+        }
+      }
+      setIsInvoiceFinal(false);
       fetchProfile();
     } catch (err: any) {
       alert(err.message || "خطا در ثبت اطلاعات.");
@@ -348,6 +386,23 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
       }
 
       setShowInvoiceEditModal(false);
+
+      if (editingIsInvoiceFinal) {
+        const shouldArchive = confirm(
+          `این صورت‌وضعیت به عنوان قطعی و نهایی ذخیره شد.\nآیا مایل هستید پرونده پیمانکار "${profile?.name}" نیز هم‌اکنون بایگانی (آرشیو) شود تا پرونده او در مجمع فعالان نمایش داده نشود؟`
+        );
+        if (shouldArchive) {
+          try {
+            await fetch(`/api/contractors/${contractorId}/archive`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ is_archived: 1 })
+            });
+          } catch (e) {
+            console.error("خطا در بایگانی اتوماتیک پیمانکار", e);
+          }
+        }
+      }
       fetchProfile();
     } catch (err: any) {
       alert(err.message || "خطا در بروزرسانی سند کارکرد.");
@@ -527,21 +582,52 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                     مشمول ارزش افزوده (۱۰٪)
                   </span>
                 ) : null}
+                {profile.is_archived ? (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-md font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    بایگانی شده
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    فعال
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
+              onClick={handleToggleArchive}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                profile.is_archived
+                  ? "bg-amber-55 bg-amber-50 text-amber-850 hover:bg-amber-100 border-amber-200"
+                  : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
+              }`}
+            >
+              {profile.is_archived ? (
+                <>
+                  <ArchiveRestore className="w-3.5 h-3.5" />
+                  <span>خروج پرونده از آرشیو</span>
+                </>
+              ) : (
+                <>
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>بایگانی (آرشیو) پرونده</span>
+                </>
+              )}
+            </button>
+            <button
               onClick={() => setShowContractorEditModal(true)}
-              className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-indigo-100"
             >
               <span>تنظیمات و ویرایش قرارداد</span>
             </button>
             <button 
               id="back-to-contractors-dashboard-btn"
               onClick={onBack}
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-200"
             >
               <ArrowLeft className="w-4 h-4 text-slate-900" />
               <span>بازگشت به فهرست ترازها</span>
@@ -1425,7 +1511,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 {/* Right col: Office brand */}
                 <div className="flex flex-col space-y-1">
                   <span className="font-black text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
-                    {settings.enterprise_name || "دفتر فنی الوان"}
+                    {settings.enterprise_name || "دفتر فنی"}
                   </span>
                   <span className="text-[10px] text-stone-500 pr-2.5">سامانه موازنه تراز حساب پیمانکاران عمرانی</span>
                 </div>
@@ -1434,7 +1520,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 <div className="flex flex-col items-center space-y-2 text-center">
                   <span className="font-black text-base tracking-tight text-slate-950 font-bold">خلاصه تراز صورت وضعیت و مالیات پیمانکاران</span>
                   <span className="text-[10px] bg-neutral-100 px-3 py-1 rounded-full font-bold">
-                    {settings.project_name || "پروژه مسکن ملی پرند"}
+                    {settings.project_name || "نرم افزار کارگاهی"}
                   </span>
                 </div>
 

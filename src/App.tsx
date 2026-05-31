@@ -22,6 +22,7 @@ import ContractorDashboard from "./components/ContractorDashboard";
 import ContractorProfileView from "./components/ContractorProfileView";
 import MachineryDashboard from "./components/MachineryDashboard";
 import MachineryProfileView from "./components/MachineryProfileView";
+import AnalyticalReports from "./components/AnalyticalReports";
 
 import { 
   LayoutDashboard, 
@@ -43,7 +44,8 @@ import {
   Calendar,
   Layers2,
   Printer,
-  ShieldAlert
+  ShieldAlert,
+  BarChart3
 } from "lucide-react";
 import { formatCurrency, convertToPersianDigits, getJalaliDateStr } from "./utils/formatters";
 
@@ -85,7 +87,7 @@ function jalaliToDays(dateStr: string): number {
 
 export default function App() {
   // Main Section Router (landing page selection)
-  const [section, setSection] = useState<"landing" | "warehouse" | "contractors" | "machinery">("landing");
+  const [section, setSection] = useState<"landing" | "warehouse" | "contractors" | "machinery" | "reports">("landing");
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
 
   // Sub-screens within Specialized Warehouse section
@@ -537,7 +539,7 @@ export default function App() {
     if (section === "warehouse") return "۱. انبار تخصصی";
     if (section === "contractors") return "۲. پیمانکاران";
     if (section === "machinery") return "۳. ماشین‌آلات";
-    return settings.enterprise_name || "دفتر فنی الوان";
+    return settings.enterprise_name || "دفتر فنی";
   };
 
   const unreadNotificationsCount = notifications.filter(n => !n.is_read).length;
@@ -572,40 +574,18 @@ export default function App() {
                   </span>
                 ) : null}
                 <h1 className="text-sm sm:text-base font-black tracking-tight text-white m-0">
-                  {settings.enterprise_name || "دفتر فنی الوان"}
+                  {settings.enterprise_name || "دفتر فنی"}
                 </h1>
               </div>
               <p className="text-[10px] text-stone-300 mt-0.5">پورتال هماهنگ فنی، انبارداری و تراز مالی معوقات</p>
             </div>
           </div>
 
-          {/* Center Part: Active Project Name & Direct Switch Dropdown */}
+          {/* Center Part: Active Project Name */}
           <div className="flex items-center gap-2 bg-slate-950/40 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shrink-0"></span>
             <span className="text-stone-300">پروژه:</span>
-            <strong className="text-yellow-300 max-w-[200px] truncate">{settings.project_name || "پروژه مسکن ملی پرند"}</strong>
-            
-            {/* Header Switch Selector */}
-            <span className="text-stone-500 mx-1">|</span>
-            <select
-              value={section}
-              onChange={(e) => {
-                const val = e.target.value as "landing" | "warehouse" | "contractors" | "machinery";
-                setSection(val);
-                setMobileMenuOpen(false);
-                setActiveContractorId(null);
-                setActiveMachineId(null);
-                if (val === "warehouse") {
-                  setCurrentScreen("dashboard");
-                }
-              }}
-              className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10px] md:text-xs px-2.5 py-1.5 rounded-lg border border-white/15 focus:outline-none focus:ring-1 focus:ring-white transition-all cursor-pointer font-sans"
-            >
-              <option value="landing" className="text-slate-900 font-bold">🏠 صفحه کنترل اصلی</option>
-              <option value="warehouse" className="text-slate-900 font-bold">۱. انبار تخصصی</option>
-              <option value="contractors" className="text-slate-900 font-bold">۲. پیمانکاران</option>
-              <option value="machinery" className="text-slate-900 font-bold">۳. ماشین‌آلات</option>
-            </select>
+            <strong className="text-yellow-300 max-w-[200px] truncate">{settings.project_name || "نرم افزار کارگاهی"}</strong>
           </div>
 
           {/* Left Part: Today's Long Persian Date & Notifications indicator */}
@@ -948,10 +928,10 @@ export default function App() {
                 سامانه هوشمند و یکپارچه امور کارگاه
               </span>
               <h2 className="text-lg font-black tracking-tight leading-snug">
-                {settings.enterprise_name || "دفتر فنی الوان"}
+                {settings.enterprise_name || "دفتر فنی"}
               </h2>
               <p className="text-stone-300 text-[11px] leading-relaxed max-w-4xl">
-                مدیریت انبارداری، موازنه تراز حساب جاری پیمانکاران، و پایش سوابق کارکرد مالی ماشین‌آلات پروژه {settings.project_name || "مسکن ملی پرند"}.
+                مدیریت انبارداری، موازنه تراز حساب جاری پیمانکاران، و پایش سوابق کارکرد مالی ماشین‌آلات پروژه {settings.project_name || "نرم افزار کارگاهی"}.
               </p>
             </div>
           </div>
@@ -998,7 +978,7 @@ export default function App() {
                       : "bg-[#fffcf0] border-amber-200/60 text-amber-900"
                   }`}>
                     <span className={`text-[9px] shrink-0 font-bold px-1.5 py-0.5 rounded-md ${
-                      alert.type === "danger" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-850"
+                      alert.type === "danger" ? "bg-red-100 text-red-0" : "bg-amber-100 text-amber-850"
                     }`}>
                       {alert.type === "danger" ? "بحرانی 🚨" : "هشدار ⚠️"}
                     </span>
@@ -1049,7 +1029,7 @@ export default function App() {
           </div>
 
           {/* Three Portals Grid Selection - Symmetrical, Compact heights, Colormatched background for distinct vibes */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             
             {/* 1. Specialized Warehouse Portal (Emerald Theme) */}
             <div 
@@ -1058,7 +1038,7 @@ export default function App() {
                 setSection("warehouse");
                 setCurrentScreen("dashboard");
               }}
-              className="bg-emerald-50/15 hover:bg-emerald-50/25 border border-emerald-250/60 hover:border-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-60 text-right"
+              className="bg-emerald-50/15 hover:bg-emerald-50/25 border border-emerald-250/60 hover:border-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
             >
               <div className="space-y-3">
                 <div className="p-3 bg-white text-emerald-600 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-emerald-100">
@@ -1092,7 +1072,7 @@ export default function App() {
                 setSection("contractors");
                 setActiveContractorId(null);
               }}
-              className="bg-blue-50/15 hover:bg-blue-50/25 border border-blue-250/60 hover:border-blue-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-60 text-right"
+              className="bg-blue-50/15 hover:bg-blue-50/25 border border-blue-250/60 hover:border-blue-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
             >
               <div className="space-y-3">
                 <div className="p-3 bg-white text-blue-700 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-blue-105">
@@ -1126,7 +1106,7 @@ export default function App() {
                 setSection("machinery");
                 setActiveMachineId(null);
               }}
-              className="bg-orange-50/15 hover:bg-orange-50/25 border border-orange-255/60 hover:border-orange-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-60 text-right"
+              className="bg-orange-50/15 hover:bg-orange-50/25 border border-orange-255/60 hover:border-orange-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
             >
               <div className="space-y-3">
                 <div className="p-3 bg-white text-orange-600 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-orange-105">
@@ -1153,6 +1133,38 @@ export default function App() {
               </div>
             </div>
 
+            {/* 4. Analytical Reports & Charts Portal (Indigo Theme) */}
+            <div 
+              id="portal-card-reports"
+              onClick={() => {
+                setSection("reports");
+              }}
+              className="bg-indigo-50/15 hover:bg-indigo-50/25 border border-indigo-250/60 hover:border-indigo-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
+            >
+              <div className="space-y-3">
+                <div className="p-3 bg-white text-indigo-650 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-indigo-105">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-indigo-950 group-hover:text-indigo-805 transition-colors flex items-center gap-1">
+                    <span className="text-indigo-500 font-serif">۴.</span>
+                    <span>نمودارها و گزارشات تفکیکی</span>
+                  </h3>
+                  <p className="text-stone-550 text-[11px] leading-relaxed mt-1.5 font-semibold">
+                    رصد تفکیکی و تجمعی ماشین‌آلات سبک و سنگین، نمودار زمان و هزینه پیمانکاران جزء و پرداخت‌ها.
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-indigo-100/60 pt-3 flex items-center justify-between mt-3 font-semibold">
+                <span className="text-[10px] text-indigo-800/85 font-mono">
+                  نمودارهای بهای تمام‌شده
+                </span>
+                <span className="text-indigo-650 font-bold text-[11px] flex items-center gap-1 group-hover:translate-x-[-3px] transition-transform">
+                  آنالیز پویای کارگاه &larr;
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* General Co-Workshop Notifications and Reminders Hub */}
@@ -1392,7 +1404,7 @@ export default function App() {
                         {settings.logo_img && (
                           <img src={settings.logo_img} className="w-7 h-7 object-contain rounded p-0.5 border" alt="Logo" referrerPolicy="no-referrer" />
                         )}
-                        <span>{settings.enterprise_name || "دفتر فنی الوان"}</span>
+                        <span>{settings.enterprise_name || "دفتر فنی"}</span>
                       </span>
                       <span className="text-[10px] text-stone-500 pr-2.5">تیم هماهنگی امور زنده فنی و کارگاه • مدیریت معوقات</span>
                     </div>
@@ -1404,7 +1416,7 @@ export default function App() {
                         {debtReportFilterType === "machinery" && "گزارش کارکرد و بدهی معوق مالکان ماشین‌آلات"}
                       </strong>
                       <span className="text-[10px] bg-stone-100 px-3 py-0.5 rounded-full font-bold">
-                        پروژه: {settings.project_name || "پروژه مسکن ملی پرند"}
+                        پروژه: {settings.project_name || "نرم افزار کارگاهی"}
                       </span>
                     </div>
 
@@ -1523,7 +1535,7 @@ export default function App() {
                     <div>
                       <h4 className="font-extrabold text-sm text-yellow-500">جمع کل تعهدات معوقه کارفرمایی پروژه کالا (بدهی خالص نهایی):</h4>
                       <p className="text-[10px] text-stone-300 mt-1 leading-relaxed">
-                        این رقم موازنه نهایی بدهی بااقیمانده برای کلیه ردیف‌های فعال و تسویه‌نشده {settings.project_name || "پروژه مسکن ملی پرند"} طبق معیارهای استخراج فیلتر شده را تبیین می‌نماید.
+                        این رقم موازنه نهایی بدهی بااقیمانده برای کلیه ردیف‌های فعال و تسویه‌نشده {settings.project_name || "نرم افزار کارگاهی"} طبق معیارهای استخراج فیلتر شده را تبیین می‌نماید.
                       </p>
                     </div>
                     <div className="text-left font-mono shrink-0">
@@ -1665,8 +1677,8 @@ export default function App() {
             />
           )}
         </main>
-      ) : (
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      ) : section === "machinery" ? (
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8" style={{ width: "1300px", maxWidth: "none" }}>
           {activeMachineId ? (
             <MachineryProfileView 
               machineId={activeMachineId} 
@@ -1683,6 +1695,10 @@ export default function App() {
               onRefreshNotifications={fetchNotifications}
             />
           )}
+        </main>
+      ) : (
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+          <AnalyticalReports onBack={() => setSection("landing")} />
         </main>
       )}
 
@@ -1725,23 +1741,16 @@ export default function App() {
 
       {/* Global Footer (No-print) */}
       <footer className="bg-[#fcfbfa] border-t border-stone-250 py-6 mt-12 no-print relative text-right">
-        <div className="max-w-7xl mx-auto px-4 space-y-6">
+        <div className="max-w-7xl mx-auto px-4">
           
           {/* Main Footer Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-stone-550 border-b border-stone-100 pb-4">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-stone-600 font-bold">
-              {settings.logo_text && (
-                <span className="bg-slate-105 bg-stone-100 px-2 py-0.5 rounded text-[10px] text-stone-500 font-bold">
-                  {settings.logo_text}
-                </span>
-              )}
-              <span>{settings.enterprise_name || "دفتر فنی الوان"}</span>
-              <span className="text-stone-300">•</span>
-              <span>{settings.project_name || "پروژه مسکن ملی پرند"}</span>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-stone-550">
+            <div className="flex items-center gap-2 text-stone-600 font-bold text-right w-full sm:w-auto">
+              <span>ساخته شده توسط مصطفی عرفانی</span>
             </div>
             
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-stone-400 font-mono text-[10px]">نسخه نهایی ادغام‌یافته ۴.۰</span>
+            <div className="flex items-center gap-3 text-left w-full sm:w-auto justify-end">
+              <span className="text-stone-400 font-mono text-[10px]">نسخه  برنامه : 1.0</span>
             </div>
           </div>
           

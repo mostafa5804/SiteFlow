@@ -17,7 +17,9 @@ import {
   ChevronUp,
   Layers,
   Printer,
-  X
+  X,
+  Archive,
+  ArchiveRestore
 } from "lucide-react";
 import { Machine } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber, getJalaliDateStr } from "../utils/formatters";
@@ -40,6 +42,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
   const [filterContractType, setFilterContractType] = useState("all");
   const [filterBalance, setFilterBalance] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterArchive, setFilterArchive] = useState<"active" | "archived" | "all">("active");
   const [sortBy, setSortBy] = useState("id");
   const [activeTab, setActiveTab] = useState<"list" | "consolidated" | "settings">("list");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -208,6 +211,25 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
     }
   };
 
+  const handleToggleArchiveMachine = async (id: number, is_archived: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const actionName = is_archived ? "خروج از بایگانی" : "بایگانی (آرشیو)";
+    if (!confirm(`آیا مطمئن هستید که می‌خواهید دستگاه جاری را ${actionName} نمایید؟`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/machinery/${id}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !is_archived ? 1 : 0 })
+      });
+      if (!res.ok) throw new Error("خطا در تغییر وضعیت بایگانی");
+      fetchMachinery();
+    } catch (err: any) {
+      alert(err.message || "مشکلی رخ داده است.");
+    }
+  };
+
   const totalCalculated = machinery.reduce((sum, m) => sum + (m.total_calculated || 0), 0);
   const totalPaid = machinery.reduce((sum, m) => sum + (m.total_paid || 0), 0);
   const totalRemaining = machinery.reduce((sum, m) => sum + (m.remaining_balance || 0), 0);
@@ -234,7 +256,11 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
         matchesBalance = (m.remaining_balance || 0) <= 0;
       }
 
-      return matchesSearch && matchesContract && matchesBalance && matchesCategory;
+      const matchesArchive = filterArchive === "all" ||
+        (filterArchive === "archived" && m.is_archived) ||
+        (filterArchive === "active" && !m.is_archived);
+
+      return matchesSearch && matchesContract && matchesBalance && matchesCategory && matchesArchive;
     })
     .sort((a, b) => {
       if (sortBy === "owner") {
@@ -250,7 +276,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
     });
 
   return (
-    <div id="machinery-dashboard-root" className="container mx-auto px-4 py-6 max-w-7xl animate-fade-in">
+    <div id="machinery-dashboard-root" className="container mx-auto px-4 py-6 max-w-7xl animate-fade-in" style={{ width: "1250px", maxWidth: "none" }}>
       {/* Header and Nav */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
@@ -718,6 +744,20 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                 </select>
               </div>
 
+              {/* Archive filter */}
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[10px] font-bold text-stone-500 font-sans">بایگانی:</span>
+                <select
+                  value={filterArchive}
+                  onChange={(e) => setFilterArchive(e.target.value as "active" | "archived" | "all")}
+                  className="bg-white border border-stone-200 rounded-xl text-[10px] w-[110px] px-1.5 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-mac-main cursor-pointer truncate"
+                >
+                  <option value="active">دستگاه‌های فعال</option>
+                  <option value="archived">بایگانی شده (آرشیو)</option>
+                  <option value="all">همه موارد</option>
+                </select>
+              </div>
+
               {/* Sorting rule */}
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-[10px] font-bold text-stone-500 font-sans">چیدمان:</span>
@@ -745,6 +785,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                 setFilterContractType("all");
                 setFilterCategory("all");
                 setFilterBalance("all");
+                setFilterArchive("active");
                 setSortBy("id");
               }}
               className="text-[10px] text-mac-main font-bold hover:underline cursor-pointer"
@@ -792,7 +833,14 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                     className="hover:bg-orange-50/10 transition-all cursor-pointer group"
                   >
                     <td className="py-4 px-2 text-center text-stone-400 font-mono text-[11px] w-12">{convertToPersianDigits(index + 1)}</td>
-                    <td className="py-4 px-6 font-bold text-slate-800 group-hover:text-mac-main transition-colors">{m.owner_name}</td>
+                    <td className="py-4 px-6 font-bold text-slate-800 group-hover:text-mac-main transition-colors">
+                      <div className="flex items-center gap-1.5">
+                        <span>{m.owner_name}</span>
+                        {m.is_archived ? (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-black">بایگانی شده</span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="py-4 px-6 font-bold text-stone-700">
                       <div className="truncate max-w-[170px] whitespace-nowrap block" title={m.machine_type}>
                         {m.machine_type}
@@ -836,14 +884,32 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        id={`delete-machine-${m.id}-btn`}
-                        onClick={(e) => handleDeleteMachine(m.id, e)}
-                        className="p-1 px-2 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
-                        title="حذف کلیه اطلاعات"
-                      >
-                        <Trash2 className="w-4 h-4 inline-block" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          id={`archive-machine-${m.id}-btn`}
+                          onClick={(e) => handleToggleArchiveMachine(m.id, !!m.is_archived, e)}
+                          className={`p-1 px-2.5 rounded-lg transition-all cursor-pointer ${
+                            m.is_archived 
+                              ? "bg-amber-100 hover:bg-amber-200 text-amber-800" 
+                              : "hover:bg-slate-100 text-stone-400 hover:text-stone-700"
+                          }`}
+                          title={m.is_archived ? "خروج پرونده از آرشیو" : "بایگانی و آرشیو پرونده"}
+                        >
+                          {m.is_archived ? (
+                            <ArchiveRestore className="w-3.5 h-3.5 inline-block" />
+                          ) : (
+                            <Archive className="w-3.5 h-3.5 inline-block" />
+                          )}
+                        </button>
+                        <button
+                          id={`delete-machine-${m.id}-btn`}
+                          onClick={(e) => handleDeleteMachine(m.id, e)}
+                          className="p-1 px-2 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
+                          title="حذف کلیه اطلاعات"
+                        >
+                          <Trash2 className="w-4 h-4 inline-block" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

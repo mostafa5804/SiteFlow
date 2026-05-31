@@ -17,7 +17,9 @@ import {
   ChevronUp,
   Layers,
   Printer,
-  X
+  X,
+  Archive,
+  ArchiveRestore
 } from "lucide-react";
 import { Contractor } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber, getJalaliDateStr } from "../utils/formatters";
@@ -38,6 +40,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
 
   const [filterActivity, setFilterActivity] = useState("all");
   const [filterBalance, setFilterBalance] = useState("all");
+  const [filterArchive, setFilterArchive] = useState<"active" | "archived" | "all">("active");
   const [sortBy, setSortBy] = useState("id");
   const [activeTab, setActiveTab] = useState<"list" | "consolidated" | "settings">("list");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -210,6 +213,25 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
     }
   };
 
+  const handleToggleArchiveContractor = async (id: number, is_archived: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const actionName = is_archived ? "خروج از بایگانی" : "بایگانی (آرشیو)";
+    if (!confirm(`آیا مطمئن هستید که می‌خواهید پروژه/پیمانکار جاری را ${actionName} نمایید؟`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/contractors/${id}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !is_archived ? 1 : 0 })
+      });
+      if (!res.ok) throw new Error("خطا در تغییر وضعیت بایگانی");
+      fetchContractors();
+    } catch (err: any) {
+      alert(err.message || "مشکلی رخ داده است.");
+    }
+  };
+
   const totalGross = contractors.reduce((sum, c) => sum + (c.total_gross || 0), 0);
   const totalRetention = contractors.reduce((sum, c) => sum + (c.total_retention || 0), 0);
   const totalInsurance = contractors.reduce((sum, c) => sum + (c.total_insurance || 0), 0);
@@ -235,7 +257,11 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
         matchesBalance = (c.remaining_balance || 0) <= 0;
       }
 
-      return matchesSearch && matchesActivity && matchesBalance;
+      const matchesArchive = filterArchive === "all" ||
+        (filterArchive === "archived" && c.is_archived) ||
+        (filterArchive === "active" && !c.is_archived);
+
+      return matchesSearch && matchesActivity && matchesBalance && matchesArchive;
     })
     .sort((a, b) => {
       if (sortBy === "name") {
@@ -696,6 +722,20 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                 </select>
               </div>
 
+              {/* Archive filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-stone-500">وضعیت پرونده:</span>
+                <select
+                  value={filterArchive}
+                  onChange={(e) => setFilterArchive(e.target.value as "active" | "archived" | "all")}
+                  className="bg-white border border-stone-200 rounded-xl text-[11px] px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-con-main cursor-pointer"
+                >
+                  <option value="active">پرونده‌های فعال</option>
+                  <option value="archived">بایگانی شده (آرشیو)</option>
+                  <option value="all">همه موارد</option>
+                </select>
+              </div>
+
               {/* Sorting rule */}
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-stone-500">ترتیب چیدمان:</span>
@@ -722,6 +762,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                 setSearchQuery("");
                 setFilterActivity("all");
                 setFilterBalance("all");
+                setFilterArchive("active");
                 setSortBy("id");
               }}
               className="text-[10px] text-con-main font-bold hover:underline cursor-pointer"
@@ -768,7 +809,14 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                   >
                     <td className="py-4 px-6 text-center text-stone-400 font-mono text-[11px]">{convertToPersianDigits(c.id)}</td>
                     <td className="py-4 px-6 font-bold text-slate-800 group-hover:text-con-main transition-colors">
-                      <div>{c.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span>{c.name}</span>
+                        {c.is_archived === 1 && (
+                          <span className="text-[9px] bg-amber-55 bg-amber-100 hover:bg-amber-150 text-amber-800 px-1.5 py-0.5 rounded font-black border border-amber-220">
+                            بایگانی‌شده
+                          </span>
+                        )}
+                      </div>
                       {c.initial_amount && c.initial_amount > 0 ? (
                         (() => {
                           const initAmt = parseFloat(String(c.initial_amount));
@@ -825,14 +873,31 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        id={`delete-contractor-${c.id}-btn`}
-                        onClick={(e) => handleDeleteContractor(c.id, e)}
-                        className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
-                        title="حذف پیمانکار و متعلقات"
-                      >
-                        <Trash2 className="w-4 h-4 inline-block" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={(e) => handleToggleArchiveContractor(c.id, !!c.is_archived, e)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            c.is_archived
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "hover:bg-stone-150 text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                          }`}
+                          title={c.is_archived ? "خروج پرونده از بایگانی" : "بایگانی و آرشیو پرونده"}
+                        >
+                          {c.is_archived ? (
+                            <ArchiveRestore className="w-4 h-4 inline-block" />
+                          ) : (
+                            <Archive className="w-4 h-4 inline-block" />
+                          )}
+                        </button>
+                        <button
+                          id={`delete-contractor-${c.id}-btn`}
+                          onClick={(e) => handleDeleteContractor(c.id, e)}
+                          className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
+                          title="حذف پیمانکار و متعلقات"
+                        >
+                          <Trash2 className="w-4 h-4 inline-block" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
