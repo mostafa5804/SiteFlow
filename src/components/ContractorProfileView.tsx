@@ -572,7 +572,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
           <div className="bg-stone-50/50 p-3 rounded-lg border border-stone-100">
             <span className="text-[10px] text-stone-400 block mb-1">مبلغ اولیه پیمان</span>
             <span className="font-bold text-stone-850 font-mono">
-              {profile.initial_amount ? `${formatCurrency(profile.initial_amount)} ریال` : "ثبت نشده"}
+              {profile.initial_amount ? formatCurrency(profile.initial_amount) : "ثبت نشده"}
             </span>
           </div>
           <div className="bg-stone-50/50 p-3 rounded-lg border border-stone-100">
@@ -1545,7 +1545,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                   <div className="space-y-1">
                     <span className="text-[10px] block font-bold" style={{ color: '#111010' }}>باقیمانده تراز حساب (طلب پیمانکار)</span>
                     <strong className="text-lg font-black tracking-tight font-mono" style={{ color: '#11110e' }}>
-                      {formatCurrency(profile.remaining_balance)} ریال
+                      {formatCurrency(profile.remaining_balance)}
                     </strong>
                   </div>
                   <div className="border-r pr-5 space-y-0.5 text-right font-mono text-[10px]" style={{ borderColor: '#1c1919' }}>

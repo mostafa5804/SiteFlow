@@ -638,13 +638,13 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                             </td>
                             <td className="py-4 px-4 text-left text-[11px] text-stone-500">
                               {profile.contract_type === "hourly" ? (
-                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} ساعت × {formatCurrency(currentRate)} ریال</span>
+                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} ساعت × {formatCurrency(currentRate)}</span>
                               ) : profile.contract_type === "daily" ? (
-                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} روز × {formatCurrency(currentRate)} ریال (روزمزد)</span>
+                                <span>ضرب مستقیم: {formatNumber(perf.performance_value)} روز × {formatCurrency(currentRate)} (روزمزد)</span>
                               ) : (
                                 <span>
                                   مبنای ماه {perf.month_name} ({daysInMonth} روزه) 
-                                  - روزمزد تناسبی: {formatCurrency(Math.round(currentRate / daysInMonth))} ریال از اجاره {formatCurrency(currentRate)}
+                                  - روزمزد تناسبی: {formatCurrency(Math.round(currentRate / daysInMonth))} از اجاره {formatCurrency(currentRate)}
                                 </span>
                               )}
                             </td>
@@ -829,7 +829,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 <input
                   id="perf-rate-input"
                   type="text"
-                  placeholder={`پیش‌فرض قرارداد: ${formatCurrency(profile.base_rent)} ریال`}
+                  placeholder={`پیش‌فرض قرارداد: ${formatCurrency(profile.base_rent)}`}
                   value={rateValue}
                   onChange={(e) => setRateValue(formatInputNumber(e.target.value))}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-mac-main text-right font-medium font-mono font-bold"
@@ -1085,7 +1085,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 <div>
                   <span className="text-[10px] text-stone-400 block mb-0.5">مبنای قرارداد و نرخ پایه:</span>
                   <strong className="text-stone-850 font-bold font-mono">
-                    {formatCurrency(profile.base_rent)} ریال ({profile.contract_type === "hourly" ? "ساعتی" : "ماهانه"})
+                    {formatCurrency(profile.base_rent)} ({profile.contract_type === "hourly" ? "ساعتی" : "ماهانه"})
                   </strong>
                 </div>
               </div>
@@ -1172,7 +1172,7 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                   <div className="space-y-1">
                     <span className="text-[10px] block" style={{ color: '#111010' }}>مانده حساب {printYearFilter !== "all" ? `سال ${printYearFilter}` : "(طلب قطعی کل)"}</span>
                     <strong className="text-base font-black tracking-tight font-mono" style={{ color: '#11110e' }}>
-                      {formatCurrency(printRemainingBalance)} ریال
+                      {formatCurrency(printRemainingBalance)}
                     </strong>
                   </div>
                   <div className="border-r pr-5 space-y-0.5 text-right font-mono text-[10px]" style={{ borderColor: '#1c1919' }}>

@@ -548,7 +548,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                                     <td className="p-3 text-left font-mono text-stone-500">
                                       {sub.initial_amount && sub.initial_amount > 0 ? (
                                         <div>
-                                          <div>{formatCurrency(sub.initial_amount)} ریال</div>
+                                          <div>{formatCurrency(sub.initial_amount)}</div>
                                           <div className="text-[9px] text-stone-400 mt-0.5">({convertToPersianDigits(subPercentage.toFixed(1))}% پیشرفت)</div>
                                         </div>
                                       ) : "ثبت نشده"}
@@ -1261,7 +1261,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                                   <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(deduct)}</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(net)}</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(paid)}</td>
-                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(balance)} ریال</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(balance)}</td>
                                 </tr>
                               );
                             })}
@@ -1272,7 +1272,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                               <td className="border border-stone-300 p-2 text-left font-mono">-{formatCurrency(totalDeductGlobal)}</td>
                               <td className="border border-stone-300 p-2 text-left font-mono font-bold">{formatCurrency(totalNetGlobal)}</td>
                               <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(totalPaidGlobal)}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(totalBalanceGlobal)} ریال</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono font-black text-rose-700">{formatCurrency(totalBalanceGlobal)}</td>
                             </tr>
                           </tbody>
                         </table>
