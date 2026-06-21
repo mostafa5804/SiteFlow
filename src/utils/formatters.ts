@@ -8,33 +8,40 @@ export function convertToPersianDigits(num: string | number): string {
 
 export function getJalaliDateStr(d: Date = new Date()): string {
   try {
-    const formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-    const parts = formatter.formatToParts(d);
-    let year = parts.find(p => p.type === 'year')?.value || '';
-    let month = parts.find(p => p.type === 'month')?.value || '';
-    let day = parts.find(p => p.type === 'day')?.value || '';
+    const gy = d.getFullYear();
+    const gm = d.getMonth() + 1;
+    const gd = d.getDate();
     
-    // Convert Persian digits to English digits
-    const toEn = (s: string) => s.replace(/[۰-۹]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 1776));
-    year = toEn(year);
-    month = toEn(month);
-    day = toEn(day);
+    const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    let jy = (gy <= 1600) ? 0 : 979;
+    let gy_rel = gy - ((gy <= 1600) ? 621 : 1600);
+    let gy2 = (gm > 2) ? (gy_rel + 1) : gy_rel;
+    let days = (365 * gy_rel) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1];
     
-    // clean years/months/days from extra characters
-    year = year.replace(/\D/g, '');
-    month = month.replace(/\D/g, '');
-    day = day.replace(/\D/g, '');
+    jy += 33 * Math.floor(days / 12053);
+    days %= 12053;
+    jy += 4 * Math.floor(days / 1461);
+    days %= 1461;
     
-    if (year && month && day) {
-      return `${year}/${month}/${day}`;
+    if (days > 365) {
+      jy += Math.floor((days - 1) / 365);
+      days = (days - 1) % 365;
     }
-    return "1405/03/09";
+    
+    let jm, jd;
+    if (days < 186) {
+      jm = 1 + Math.floor(days / 31);
+      jd = 1 + (days % 31);
+    } else {
+      jm = 7 + Math.floor((days - 186) / 30);
+      jd = 1 + ((days - 186) % 30);
+    }
+    
+    const monthStr = jm < 10 ? "0" + jm : String(jm);
+    const dayStr = jd < 10 ? "0" + jd : String(jd);
+    return `${jy}/${monthStr}/${dayStr}`;
   } catch (err) {
-    return "1405/03/09";
+    return "1405/03/25"; // Safe default for 2026-06-15
   }
 }
 

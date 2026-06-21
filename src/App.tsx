@@ -53,6 +53,21 @@ export function getNicePersianDate() {
   return getJalaliDateStr();
 }
 
+const PERSIAN_MONTHS: Record<number, string> = {
+  1: "فروردین",
+  2: "اردیبهشت",
+  3: "خرداد",
+  4: "تیر",
+  5: "مرداد",
+  6: "شهریور",
+  7: "مهر",
+  8: "آبان",
+  9: "آذر",
+  10: "دی",
+  11: "بهمن",
+  12: "اسفند",
+};
+
 function getJalaliDateStrToday(): string {
   return getJalaliDateStr();
 }
@@ -128,6 +143,8 @@ export default function App() {
   const [showDebtReportModal, setShowDebtReportModal] = useState(false);
   const [debtReportFilterType, setDebtReportFilterType] = useState<"all" | "contractors" | "machinery">("all");
   const [debtReportMachineryCategory, setDebtReportMachineryCategory] = useState<"all" | "سنگین" | "سبک">("all");
+  const [debtReportMonth, setDebtReportMonth] = useState<"all" | number>("all");
+  const [debtReportYear, setDebtReportYear] = useState<"all" | number>("all");
 
   // Settings State
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -333,7 +350,7 @@ export default function App() {
             id: `contractor-over-125-${c.id}`,
             type: "danger",
             title: `تجاوز از سقف قانونی تعهدات پیمانکار ${c.name}`,
-            message: `کل کارکرد ناخالص ثبت‌شده (${formatCurrency(gross)} ریال) معادل ${ratioPercentage.toFixed(1)}٪ مبلغ اولیه پیمان (${formatCurrency(initial)} ریال) است که از سقف مجاز ۱۲۵٪ قانونی عبور کرده است. هرگونه ثبت صورت‌وضعیت جدید مسدود است و تفویض قرارداد جدید الزامی است.`
+            message: `کل کارکرد ناخالص ثبت‌شده (${formatCurrency(gross)}) معادل ${ratioPercentage.toFixed(1)}٪ مبلغ اولیه پیمان (${formatCurrency(initial)}) است که از سقف مجاز ۱۲۵٪ قانونی عبور کرده است. هرگونه ثبت صورت‌وضعیت جدید مسدود است و تفویض قرارداد جدید الزامی است.`
           });
         } else if (ratioPercentage > 100) {
           const hasAppendix = c.appendix_no ? true : false;
@@ -341,7 +358,7 @@ export default function App() {
             id: `contractor-appendix-needed-${c.id}`,
             type: "warning",
             title: `نیاز به صدور الحاقیه متمم برای پیمانکار ${c.name}`,
-            message: `کل کارکرد ناخالص پیمانکار (${formatCurrency(gross)} ریال) به ${ratioPercentage.toFixed(1)}٪ مبلغ اولیه پیمان رسیده است. ${hasAppendix ? `الحاقیه شماره ${c.appendix_no} ثبت شده است.` : "صدور الحاقیه تغییر مقادیر ابلاغی جهت مجاز شدن کارکرد مقتضی است."}`
+            message: `کل کارکرد ناخالص پیمانکار (${formatCurrency(gross)}) به ${ratioPercentage.toFixed(1)}٪ مبلغ اولیه پیمان رسیده است. ${hasAppendix ? `الحاقیه شماره ${c.appendix_no} ثبت شده است.` : "صدور الحاقیه تغییر مقادیر ابلاغی جهت مجاز شدن کارکرد مقتضی است."}`
           });
         }
 
@@ -1314,19 +1331,25 @@ export default function App() {
                     font-size: 10pt !important;
                     direction: rtl !important;
                   }
-                  #root, #root-container, .fixed, .no-print, button, select, input, header, .nav {
-                    display: none !important;
+                  /* Hide all elements on the body during print */
+                  body * {
                     visibility: hidden !important;
+                  }
+                  /* Bring back only the printable area and its offspring */
+                  #printable-area-debts,
+                  #printable-area-debts * {
+                    visibility: visible !important;
                   }
                   #printable-area-debts {
                     display: block !important;
-                    visibility: visible !important;
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    background: white;
-                    padding: 10px;
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    background: white !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: none !important;
                   }
                   .border {
                     border-color: #555 !important;
@@ -1334,60 +1357,108 @@ export default function App() {
                 }
               `}} />
 
-              <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 no-print">
-                {/* Action Bar */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 mb-6 gap-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-slate-900" />
-                    <h3 className="font-extrabold text-base text-slate-900 font-bold">پیش‌نمایش لیست رسمی بدهی‌های معوق کارگاه</h3>
-                  </div>
-                  
-                  {/* Interactive Filters (no-print) */}
-                  <div className="flex flex-wrap items-center gap-3 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                    <div className="flex items-center gap-1 text-xs">
-                      <span className="font-bold text-stone-500">رسته معوقات:</span>
-                      <select
-                        value={debtReportFilterType}
-                        onChange={(e) => setDebtReportFilterType(e.target.value as any)}
-                        className="p-1 px-2 border rounded bg-white text-stone-800 font-bold focus:outline-none"
-                      >
-                        <option value="all">📁 همه معوقات (پیمانکاران + ماشین‌آلات)</option>
-                        <option value="contractors">👤 فقط پیمانکاران فرعی</option>
-                        <option value="machinery">⚙️ فقط ناوگان ماشین‌آلات</option>
-                      </select>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 printing-modal-card">
+                {/* Content which is hidden on print */}
+                <div className="no-print">
+                  {/* Action Bar */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 mb-6 gap-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-slate-900" />
+                      <h3 className="font-extrabold text-base text-slate-900 font-bold">پیش‌نمایش لیست رسمی بدهی‌های معوق کارگاه</h3>
                     </div>
-
-                    {(debtReportFilterType === "all" || debtReportFilterType === "machinery") && (
+                    
+                    {/* Interactive Filters (no-print) */}
+                    <div className="flex flex-wrap items-center gap-3 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
                       <div className="flex items-center gap-1 text-xs">
-                        <span className="font-bold text-stone-500">دسته‌بندی ناوگان:</span>
+                        <span className="font-bold text-stone-500">رسته معوقات:</span>
                         <select
-                          value={debtReportMachineryCategory}
-                          onChange={(e) => setDebtReportMachineryCategory(e.target.value as any)}
+                          value={debtReportFilterType}
+                          onChange={(e) => setDebtReportFilterType(e.target.value as any)}
                           className="p-1 px-2 border rounded bg-white text-stone-800 font-bold focus:outline-none"
                         >
-                          <option value="all">همه ماشین‌آلات</option>
-                          <option value="سنگین">فقط ماشین‌آلات سنگین</option>
-                          <option value="سبک">فقط ماشین‌آلات سبک</option>
+                          <option value="all">📁 همه معوقات (پیمانکاران + ماشین‌آلات)</option>
+                          <option value="contractors">👤 فقط پیمانکاران فرعی</option>
+                          <option value="machinery">⚙️ فقط ناوگان ماشین‌آلات</option>
                         </select>
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      id="print-debts-list-btn"
-                      onClick={() => window.print()}
-                      className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Printer className="w-4 h-4 text-yellow-400" />
-                      <span>چاپ گزارش بدهی (PDF)</span>
-                    </button>
-                    <button
-                      onClick={() => setShowDebtReportModal(false)}
-                      className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      بستن گزارش
-                    </button>
+                      <div className="flex items-center gap-1 text-xs">
+                        <span className="font-bold text-stone-500">دوره گزارش:</span>
+                        <select
+                          value={debtReportMonth}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDebtReportMonth(val === "all" ? "all" : parseInt(val, 10));
+                          }}
+                          className="p-1 px-2 border rounded bg-white text-stone-800 font-bold focus:outline-none"
+                        >
+                          <option value="all">📊 تجمعی (کل دوره)</option>
+                          <option value="1">۱. فروردین</option>
+                          <option value="2">۲. اردیبهشت</option>
+                          <option value="3">۳. خرداد</option>
+                          <option value="4">۴. تیر</option>
+                          <option value="5">۵. مرداد</option>
+                          <option value="6">۶. شهریور</option>
+                          <option value="7">۷. مهر</option>
+                          <option value="8">۸. آبان</option>
+                          <option value="9">۹. آذر</option>
+                          <option value="10">۱۰. دی</option>
+                          <option value="11">۱۱. بهمن</option>
+                          <option value="12">۱۲. اسفند</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-xs">
+                        <span className="font-bold text-stone-500">سال گزارش:</span>
+                        <select
+                          value={debtReportYear}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDebtReportYear(val === "all" ? "all" : parseInt(val, 10));
+                          }}
+                          className="p-1 px-2 border rounded bg-white text-stone-800 font-bold focus:outline-none"
+                        >
+                          <option value="all">📆 تجمعی (همه سال‌ها)</option>
+                          <option value="1406">سال ۱۴۰۶</option>
+                          <option value="1405">سال ۱۴۰۵</option>
+                          <option value="1404">سال ۱۴۰۴</option>
+                          <option value="1403">سال ۱۴۰۳</option>
+                          <option value="1402">سال ۱۴۰۲</option>
+                        </select>
+                      </div>
+
+                                        {(debtReportFilterType === "all" || debtReportFilterType === "machinery") && (
+                        <div className="flex items-center gap-1 text-xs">
+                          <span className="font-bold text-stone-500">دسته‌بندی ناوگان:</span>
+                          <select
+                            value={debtReportMachineryCategory}
+                            onChange={(e) => setDebtReportMachineryCategory(e.target.value as any)}
+                            className="p-1 px-2 border rounded bg-white text-stone-800 font-bold focus:outline-none"
+                          >
+                            <option value="all">همه ماشین‌آلات</option>
+                            <option value="سنگین">فقط ماشین‌آلات سنگین</option>
+                            <option value="سبک">فقط ماشین‌آلات سبک</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        id="print-debts-list-btn"
+                        onClick={() => window.print()}
+                        className="bg-slate-900 hover:bg-slate-850 text-white px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Printer className="w-4 h-4 text-yellow-400" />
+                        <span>چاپ گزارش بدهی (PDF)</span>
+                      </button>
+                      <button
+                        onClick={() => setShowDebtReportModal(false)}
+                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        بستن گزارش
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1416,7 +1487,7 @@ export default function App() {
                         {debtReportFilterType === "machinery" && "گزارش کارکرد و بدهی معوق مالکان ماشین‌آلات"}
                       </strong>
                       <span className="text-[10px] bg-stone-100 px-3 py-0.5 rounded-full font-bold">
-                        پروژه: {settings.project_name || "نرم افزار کارگاهی"}
+                        پروژه: {settings.project_name || "نرم افزار کارگاهی"} • دوره گزارش: {debtReportMonth === "all" ? "تجمعی" : (PERSIAN_MONTHS[debtReportMonth as number] || debtReportMonth)} • سال: {debtReportYear === "all" ? "همه سال‌ها" : debtReportYear}
                       </span>
                     </div>
 
@@ -1426,133 +1497,223 @@ export default function App() {
                   </div>
 
                   {/* Sub-section 1: Contractors Debt Block */}
-                  {(debtReportFilterType === "all" || debtReportFilterType === "contractors") && (
-                    <div>
-                      <h4 className="font-black text-xs text-slate-900 border-r-4 border-indigo-700 pr-2 mb-3 font-bold">۱. موازن کارکرد و بدهی پیمانکاران فرعی جزء</h4>
-                      {contractors.length === 0 ? (
-                        <div className="text-center py-4 bg-stone-50 text-stone-400">هیچ پیمانکاری در سیستم تعریف نشده است</div>
-                      ) : (
-                        <table className="w-full text-right border text-[10px] border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 font-bold border-b text-stone-600">
-                              <th className="p-2 border-l text-right">نام پیمانکار فرعی</th>
-                              <th className="p-2 border-l text-right">رسته و شرح فعالیت</th>
-                              <th className="p-2 border-l text-left">مجموع کارکرد ناخالص (ریال)</th>
-                              <th className="p-2 border-l text-left">خالص نهایی (پس از کسر سپرده‌ها)</th>
-                              <th className="p-2 border-l text-left">کل مبالغ پرداختی (ریال)</th>
-                              <th className="p-2 text-left bg-orange-50/50 text-orange-950 font-bold">باقیمانده بدهی (ریال)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y font-mono">
-                            {contractors.map((c) => (
-                              <tr key={c.id}>
-                                <td className="p-2 border-l font-sans font-bold text-slate-800">{c.name}</td>
-                                <td className="p-2 border-l font-sans text-stone-500">{c.activity_field}</td>
-                                <td className="p-2 border-l text-left">{formatCurrency(c.total_gross)}</td>
-                                <td className="p-2 border-l text-left text-indigo-950">{formatCurrency(c.total_net)}</td>
-                                <td className="p-2 border-l text-left text-emerald-800">{formatCurrency(c.total_paid)}</td>
-                                <td className="p-2 text-left font-black bg-orange-50/40 text-orange-750">{formatCurrency(c.remaining_balance)}</td>
-                              </tr>
-                            ))}
-                            {/* Subtotal row */}
-                            <tr className="bg-slate-50 font-sans font-black text-[11px]">
-                              <td className="p-2 text-right border-l font-bold" colSpan={2}>جمع کل معوقات پیمانکاران فرعی:</td>
-                              <td className="p-2 border-l text-left font-mono">{formatCurrency(contractors.reduce((s, x) => s + (x.total_gross || 0), 0))}</td>
-                              <td className="p-2 border-l text-left font-mono text-indigo-950">{formatCurrency(contractors.reduce((s, x) => s + (x.total_net || 0), 0))}</td>
-                              <td className="p-2 border-l text-left font-mono text-emerald-800">{formatCurrency(contractors.reduce((s, x) => s + (x.total_paid || 0), 0))}</td>
-                              <td className="p-2 text-left font-mono text-orange-700 bg-orange-50 font-bold">{formatCurrency(contractors.reduce((s, x) => s + (x.remaining_balance || 0), 0))}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  )}
+                  {(() => {
+                    const r_contractors = contractors.map(c => {
+                      const invoices = c.invoices || [];
+                      const payments = c.payments || [];
 
-                  {/* Sub-section 2: Machinery Debt Block */}
-                  {(debtReportFilterType === "all" || debtReportFilterType === "machinery") && (
-                    <div>
-                      <h4 className="font-black text-xs text-slate-900 border-r-4 border-orange-600 pr-2 mb-3 font-bold">
-                        ۲. کارکرد و بدهی ناوگان ماشین‌آلات عمرانی
-                        {debtReportMachineryCategory !== "all" && ` (دسته‌بندی: ${debtReportMachineryCategory})`}
-                      </h4>
-                      {(() => {
-                        const filtered = machines.filter(m => {
-                          if (debtReportMachineryCategory === "all") return true;
-                          return m.machine_category === debtReportMachineryCategory;
-                        });
-
-                        if (filtered.length === 0) {
-                          return <div className="text-center py-4 bg-stone-50 text-stone-400 font-sans">هیچ ردیفی مطابق فیلترهای بالا یافت نشد</div>;
+                      const filteredInvoices = invoices.filter(inv => {
+                        if (debtReportMonth !== "all") {
+                          if (!inv.invoice_date) return false;
+                          const parts = inv.invoice_date.split("/");
+                          if (parts.length < 2 || parseInt(parts[1], 10) !== debtReportMonth) return false;
                         }
+                        if (debtReportYear !== "all") {
+                          if (!inv.invoice_date) return false;
+                          const parts = inv.invoice_date.split("/");
+                          if (parts.length < 1 || parseInt(parts[0], 10) !== debtReportYear) return false;
+                        }
+                        return true;
+                      });
 
-                        return (
-                          <table className="w-full text-right border text-[10px] border-collapse">
-                            <thead>
-                              <tr className="bg-slate-100 font-bold border-b text-stone-600">
-                                <th className="p-2 border-l text-right">نام مالک وسیله</th>
-                                <th className="p-2 border-l text-right">مدل و پلاک</th>
-                                <th className="p-2 border-l text-center">نوع حساب</th>
-                                <th className="p-2 border-l text-center">دسته ناوگان</th>
-                                <th className="p-2 border-l text-left">مجموع بدهی کارکرد محاسباتی (ریال)</th>
-                                <th className="p-2 border-l text-left">مبالغ پرداختی خزانه‌داری (ریال)</th>
-                                <th className="p-2 text-left bg-orange-50/50 text-orange-950 font-bold">باقیمانده بدهی (ریال)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y font-mono">
-                              {filtered.map((m) => (
-                                <tr key={m.id}>
-                                  <td className="p-2 border-l font-sans font-bold text-slate-800">{m.owner_name}</td>
-                                  <td className="p-2 border-l font-sans text-stone-550">
-                                    {m.machine_type} ({m.license_plate})
-                                  </td>
-                                  <td className="p-2 border-l text-center font-sans">
-                                    {m.contract_type === "hourly" ? "ساعتی" : "ماهانه"}
-                                  </td>
-                                  <td className="p-2 border-l text-center font-sans font-black text-stone-500">
-                                    {m.machine_category || "سنگین"}
-                                  </td>
-                                  <td className="p-2 border-l text-left text-slate-900">{formatCurrency(m.total_calculated)}</td>
-                                  <td className="p-2 border-l text-left text-emerald-800">{formatCurrency(m.total_paid)}</td>
-                                  <td className="p-2 text-left font-black bg-orange-50/40 text-orange-750">{formatCurrency(m.remaining_balance)}</td>
-                                </tr>
-                              ))}
-                              {/* Subtotal row */}
-                              <tr className="bg-slate-50 font-sans font-black text-[11px]">
-                                <td className="p-2 text-right border-l font-bold" colSpan={4}>جمع کل معوقات مالکان ماشین‌آلات:</td>
-                                <td className="p-2 border-l text-left font-mono">{formatCurrency(filtered.reduce((s, x) => s + (x.total_calculated || 0), 0))}</td>
-                                <td className="p-2 border-l text-left font-mono text-emerald-850">{formatCurrency(filtered.reduce((s, x) => s + (x.total_paid || 0), 0))}</td>
-                                <td className="p-2 text-left font-mono text-orange-700 bg-orange-50 font-bold">{formatCurrency(filtered.reduce((s, x) => s + (x.remaining_balance || 0), 0))}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        );
-                      })()}
-                    </div>
-                  )}
+                      const filteredPayments = payments.filter(pay => {
+                        if (debtReportMonth !== "all") {
+                          if (!pay.payment_date) return false;
+                          const parts = pay.payment_date.split("/");
+                          if (parts.length < 2 || parseInt(parts[1], 10) !== debtReportMonth) return false;
+                        }
+                        if (debtReportYear !== "all") {
+                          if (!pay.payment_date) return false;
+                          const parts = pay.payment_date.split("/");
+                          if (parts.length < 1 || parseInt(parts[0], 10) !== debtReportYear) return false;
+                        }
+                        return true;
+                      });
 
-                  {/* Verified Full Financial Debt Consolidation Summary */}
-                  <div className="border hover:border-stone-350 p-5 rounded-2xl bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
-                    <div>
-                      <h4 className="font-extrabold text-sm text-yellow-500">جمع کل تعهدات معوقه کارفرمایی پروژه کالا (بدهی خالص نهایی):</h4>
-                      <p className="text-[10px] text-stone-300 mt-1 leading-relaxed">
-                        این رقم موازنه نهایی بدهی بااقیمانده برای کلیه ردیف‌های فعال و تسویه‌نشده {settings.project_name || "نرم افزار کارگاهی"} طبق معیارهای استخراج فیلتر شده را تبیین می‌نماید.
-                      </p>
-                    </div>
-                    <div className="text-left font-mono shrink-0">
-                      <span className="text-[10px] text-yellow-500 block mb-0.5">کل بدهی باقیمانده (ریال):</span>
-                      <strong className="text-xl sm:text-2xl font-black text-white">
-                        {formatCurrency(
-                          ((debtReportFilterType === "all" || debtReportFilterType === "contractors")
-                            ? contractors.reduce((s, x) => s + (x.remaining_balance || 0), 0)
-                            : 0) +
-                          ((debtReportFilterType === "all" || debtReportFilterType === "machinery")
-                            ? machines.filter(m => debtReportMachineryCategory === "all" || m.machine_category === debtReportMachineryCategory)
-                                      .reduce((s, x) => s + (x.remaining_balance || 0), 0)
-                            : 0)
-                        )} ریال
-                      </strong>
-                    </div>
-                  </div>
+                      const total_gross = filteredInvoices.reduce((sum, inv) => sum + (inv.gross_amount || 0), 0);
+                      const total_net = filteredInvoices.reduce((sum, inv) => sum + (inv.net_amount || 0), 0);
+                      const total_paid = filteredPayments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+                      const remaining_balance = total_net - total_paid;
+
+                      return {
+                        ...c,
+                        total_gross,
+                        total_net,
+                        total_paid,
+                        remaining_balance
+                      };
+                    }).filter(c => {
+                      if (debtReportMonth !== "all" || debtReportYear !== "all") {
+                        return c.total_gross > 0 || c.total_paid > 0;
+                      }
+                      return true;
+                    });
+
+                    const r_machines = machines.map(m => {
+                      const performances = m.performance || [];
+                      const payments = m.payments || [];
+
+                      const filteredPerformances = performances.filter(perf => {
+                        if (debtReportMonth !== "all" && perf.month_index !== debtReportMonth) return false;
+                        if (debtReportYear !== "all") {
+                          const pYear = perf.year || 1405;
+                          if (pYear !== debtReportYear) return false;
+                        }
+                        return true;
+                      });
+
+                      const filteredPayments = payments.filter(pay => {
+                        if (debtReportMonth !== "all") {
+                          if (!pay.payment_date) return false;
+                          const parts = pay.payment_date.split("/");
+                          if (parts.length < 2 || parseInt(parts[1], 10) !== debtReportMonth) return false;
+                        }
+                        if (debtReportYear !== "all") {
+                          if (!pay.payment_date) return false;
+                          const parts = pay.payment_date.split("/");
+                          if (parts.length < 1 || parseInt(parts[0], 10) !== debtReportYear) return false;
+                        }
+                        return true;
+                      });
+
+                      const total_performance = filteredPerformances.reduce((sum, p) => sum + (p.performance_value || 0), 0);
+                      const total_calculated = filteredPerformances.reduce((sum, p) => sum + (p.total_calculated_amount || 0), 0);
+                      const total_paid = filteredPayments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+                      const remaining_balance = total_calculated - total_paid;
+
+                      return {
+                        ...m,
+                        total_performance,
+                        total_calculated,
+                        total_paid,
+                        remaining_balance
+                      };
+                    }).filter(m => {
+                      if (debtReportMachineryCategory !== "all" && m.machine_category !== debtReportMachineryCategory) {
+                        return false;
+                      }
+                      if (debtReportMonth !== "all" || debtReportYear !== "all") {
+                        return m.total_performance > 0 || m.total_paid > 0;
+                      }
+                      return true;
+                    });
+
+                    const showContractors = debtReportFilterType === "all" || debtReportFilterType === "contractors";
+                    const showMachinery = debtReportFilterType === "all" || debtReportFilterType === "machinery";
+
+                    return (
+                      <>
+                        {showContractors && (
+                          <div>
+                            <h4 className="font-black text-xs text-slate-900 border-r-4 border-indigo-700 pr-2 mb-3 font-bold">۱. موازن کارکرد و بدهی پیمانکاران فرعی جزء</h4>
+                            {r_contractors.length === 0 ? (
+                              <div className="text-center py-4 bg-stone-50 text-stone-400 font-sans mb-4 rounded-lg">هیچ پیمانکاری با کارکرد فعال در این ماه یافت نشد</div>
+                            ) : (
+                              <table className="w-full text-right border text-[10px] border-collapse mb-6">
+                                <thead>
+                                  <tr className="bg-slate-100 font-bold border-b text-stone-600">
+                                    <th className="p-2 border-l text-center">نام پیمانکار فرعی</th>
+                                    <th className="p-2 border-l text-center">رسته و شرح فعالیت</th>
+                                    <th className="p-2 border-l text-center">مجموع کارکرد ناخالص (ریال)</th>
+                                    <th className="p-2 border-l text-center">خالص نهایی (پس از کسر سپرده‌ها)</th>
+                                    <th className="p-2 border-l text-center">کل مبالغ پرداختی (ریال)</th>
+                                    <th className="p-2 text-center bg-orange-50/50 text-orange-950 font-bold">باقیمانده بدهی (ریال)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y font-mono">
+                                  {r_contractors.map((c) => (
+                                    <tr key={c.id}>
+                                      <td className="p-2 border-l font-sans font-bold text-slate-800 text-center">{c.name}</td>
+                                      <td className="p-2 border-l font-sans text-stone-500 text-center">{c.activity_field}</td>
+                                      <td className="p-2 border-l text-center">{formatCurrency(c.total_gross)}</td>
+                                      <td className="p-2 border-l text-center text-indigo-950">{formatCurrency(c.total_net)}</td>
+                                      <td className="p-2 border-l text-center text-emerald-800">{formatCurrency(c.total_paid)}</td>
+                                      <td className="p-2 text-center font-black bg-orange-50/40 text-orange-750">{formatCurrency(c.remaining_balance)}</td>
+                                    </tr>
+                                  ))}
+                                  {/* Subtotal row */}
+                                  <tr className="bg-slate-50 font-sans font-black text-[11px]">
+                                    <td className="p-2 text-center border-l font-bold" colSpan={2}>جمع کل معوقات پیمانکاران فرعی:</td>
+                                    <td className="p-2 border-l text-center font-mono">{formatCurrency(r_contractors.reduce((s, x) => s + (x.total_gross || 0), 0))}</td>
+                                    <td className="p-2 border-l text-center font-mono text-indigo-950">{formatCurrency(r_contractors.reduce((s, x) => s + (x.total_net || 0), 0))}</td>
+                                    <td className="p-2 border-l text-center font-mono text-emerald-800">{formatCurrency(r_contractors.reduce((s, x) => s + (x.total_paid || 0), 0))}</td>
+                                    <td className="p-2 text-center font-mono text-orange-700 bg-orange-50 font-bold">{formatCurrency(r_contractors.reduce((s, x) => s + (x.remaining_balance || 0), 0))}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        )}
+
+                        {showMachinery && (
+                          <div>
+                            <h4 className="font-black text-xs text-slate-900 border-r-4 border-orange-600 pr-2 mb-3 font-bold mt-4">
+                              ۲. کارکرد و بدهی ناوگان ماشین‌آلات عمرانی
+                              {debtReportMachineryCategory !== "all" && ` (دسته‌بندی: ${debtReportMachineryCategory})`}
+                            </h4>
+                            {r_machines.length === 0 ? (
+                              <div className="text-center py-4 bg-stone-50 text-stone-400 font-sans rounded-lg">هیچ ماشین‌آلاتی با کارکرد فعال در این رده نیافتیم</div>
+                            ) : (
+                              <table className="w-full text-right border text-[10px] border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-100 font-bold border-b text-stone-600">
+                                    <th className="p-2 border-l text-center">شناسه</th>
+                                    <th className="p-2 border-l text-center">نام مالک</th>
+                                    <th className="p-2 border-l text-center">نوع دستگاه و مدل</th>
+                                    <th className="p-2 border-l text-center">شماره پلاک شهربانی</th>
+                                    <th className="p-2 border-l text-center">مبلغ دوره گزارش (ریال)</th>
+                                    <th className="p-2 border-l text-center">کل مبالغ پرداختی</th>
+                                    <th className="p-2 text-center bg-orange-50/50 text-orange-950 font-bold">مانده تراز طلب</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y font-mono">
+                                  {r_machines.map((m, idx) => {
+                                    return (
+                                      <tr key={m.id}>
+                                        <td className="p-2 border-l text-center text-stone-500 font-sans">{idx + 1}</td>
+                                        <td className="p-2 border-l font-sans font-bold text-slate-800 text-center">{m.owner_name}</td>
+                                        <td className="p-2 border-l font-sans text-stone-550 text-center">{m.machine_type}</td>
+                                        <td className="p-2 border-l font-sans text-stone-500 text-center">{m.license_plate || "-"}</td>
+                                        <td className="p-2 border-l text-center text-slate-900">{formatCurrency(m.total_calculated)}</td>
+                                        <td className="p-2 border-l text-center text-emerald-800">{formatCurrency(m.total_paid)}</td>
+                                        <td className="p-2 text-center font-black bg-orange-50/40 text-orange-750">{formatCurrency(m.remaining_balance)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                  {/* Subtotal row */}
+                                  <tr className="bg-slate-50 font-sans font-black text-[11px]">
+                                    <td className="p-2 text-center border-l font-bold" colSpan={4}>جمع کل معوقات مالکان ماشین‌آلات:</td>
+                                    <td className="p-2 border-l text-center font-mono">{formatCurrency(r_machines.reduce((s, x) => s + (x.total_calculated || 0), 0))}</td>
+                                    <td className="p-2 border-l text-center font-mono text-emerald-850">{formatCurrency(r_machines.reduce((s, x) => s + (x.total_paid || 0), 0))}</td>
+                                    <td className="p-2 text-center font-mono text-orange-700 bg-orange-50 font-bold">{formatCurrency(r_machines.reduce((s, x) => s + (x.remaining_balance || 0), 0))}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Verified Full Financial Debt Consolidation Summary */}
+                        <div className="border hover:border-stone-350 p-5 rounded-2xl bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
+                          <div>
+                            <h4 className="font-extrabold text-sm text-yellow-500">جمع کل تعهدات معوقه کارفرمایی پروژه کالا (بدهی خالص نهایی):</h4>
+                            <p className="text-[10px] text-stone-300 mt-1 leading-relaxed">
+                              این رقم موازنه نهایی بدهی باقیمانده برای کلیه ردیف‌های فعال و تسویه‌نشده {settings.project_name || "نرم افزار کارگاهی"} طبق معیارهای استخراج فیلتر شده را تبیین می‌نماید.
+                            </p>
+                          </div>
+                          <div className="text-left font-mono shrink-0">
+                            <span className="text-[10px] text-yellow-500 block mb-0.5">کل بدهی باقیمانده (ریال):</span>
+                            <strong className="text-xl sm:text-2xl font-black text-white">
+                              {formatCurrency(
+                                (showContractors ? r_contractors.reduce((s, x) => s + (x.remaining_balance || 0), 0) : 0) +
+                                (showMachinery ? r_machines.reduce((s, x) => s + (x.remaining_balance || 0), 0) : 0)
+                              )}
+                            </strong>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   {/* Formalized Custom Signatures as Requested */}
                   <div className="grid grid-cols-3 gap-6 text-center text-[10.5px] font-bold text-stone-700 pt-6 border-t border-stone-200 font-sans">
@@ -1561,11 +1722,11 @@ export default function App() {
                       <span className="text-[8.5px] text-stone-400 font-normal">(نام و امضاء)</span>
                     </div>
                     <div className="flex flex-col space-y-7">
-                      <span className="text-slate-955 text-slate-950">سرپرست کارگاه</span>
+                      <span className="text-slate-950 font-bold">سرپرست کارگاه</span>
                       <span className="text-[8.5px] text-stone-400 font-normal">(نام و امضاء)</span>
                     </div>
-                    <div className="flex flex-col space-y-7">
-                      <span className="text-slate-950 font-bold">امور خزانه‌داری / تأیید مدیریت ارشد</span>
+                    <div className="flex flex-col space-y-7 font-bold">
+                      <span className="text-slate-950 font-bold">مدیریت</span>
                       <span className="text-[8.5px] text-stone-400 font-normal">(مهر و امضاء)</span>
                     </div>
                   </div>

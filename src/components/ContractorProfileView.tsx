@@ -62,12 +62,14 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
   // Invoice creation & edit fields
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [grossAmount, setGrossAmount] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState("1405/03/01");
   const [isInvoiceFinal, setIsInvoiceFinal] = useState(false);
   const [invoiceConfirmCount, setInvoiceConfirmCount] = useState(0); // For double confirmation logic
   
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [editingInvoiceNumber, setEditingInvoiceNumber] = useState("");
   const [editingGrossAmount, setEditingGrossAmount] = useState("");
+  const [editingInvoiceDate, setEditingInvoiceDate] = useState("");
   const [editingIsInvoiceFinal, setEditingIsInvoiceFinal] = useState(false);
   const [editingInvoiceConfirmCount, setEditingInvoiceConfirmCount] = useState(0);
 
@@ -222,7 +224,8 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
         body: JSON.stringify({
           invoice_number: invoiceNumber.trim(),
           gross_amount: currentGross,
-          is_final: isInvoiceFinal
+          is_final: isInvoiceFinal,
+          invoice_date: invoiceDate.trim()
         }),
       });
 
@@ -293,6 +296,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
     setEditingInvoiceId(inv.id);
     setEditingInvoiceNumber(inv.invoice_number);
     setEditingGrossAmount(formatInputNumber(inv.gross_amount));
+    setEditingInvoiceDate(inv.invoice_date || "1405/01/01");
     setEditingIsInvoiceFinal(!!inv.is_final);
     setEditingInvoiceConfirmCount(0);
     setShowInvoiceEditModal(true);
@@ -346,7 +350,8 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
         body: JSON.stringify({
           invoice_number: editingInvoiceNumber.trim(),
           gross_amount: currentGross,
-          is_final: editingIsInvoiceFinal
+          is_final: editingIsInvoiceFinal,
+          invoice_date: editingInvoiceDate.trim()
         })
       });
 
@@ -818,22 +823,24 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 </div>
               ) : (
                 <div className="overflow-x-auto text-xs">
-                  <table className="w-full text-right">
+                  <table className="w-full text-center">
                     <thead className="bg-slate-50 text-stone-500 font-bold border-b border-stone-100">
                       <tr>
-                        <th className="py-3 px-4">شماره صورت‌وضعیت</th>
+                        <th className="py-3 px-4 text-center">شماره صورت‌وضعیت</th>
+                        <th className="py-3 px-4 text-center">تاریخ</th>
                         <th className="py-3 px-4 text-center">نوع تعهد</th>
-                        <th className="py-3 px-4 text-left">مجموع ناخالص کارکرد</th>
-                        <th className="py-3 px-4 text-left text-rose-500">حسن‌انجام‌کار (کسور)</th>
-                        <th className="py-3 px-4 text-left text-rose-500">حق بیمه کارکرد</th>
-                        <th className="py-3 px-4 text-left text-indigo-650 font-bold">خالص قابل پرداخت</th>
+                        <th className="py-3 px-4 text-center">مجموع ناخالص کارکرد</th>
+                        <th className="py-3 px-4 text-center text-rose-500">حسن‌انجام‌کار (کسور)</th>
+                        <th className="py-3 px-4 text-center text-rose-500">حق بیمه کارکرد</th>
+                        <th className="py-3 px-4 text-center text-indigo-650 font-bold">خالص قابل پرداخت</th>
                         <th className="py-3 px-4 text-center">عملیات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100/50">
                       {filteredInvoices.map((inv) => (
                         <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-4 px-4 font-bold text-stone-700">{inv.invoice_number}</td>
+                          <td className="py-4 px-4 text-center font-bold text-stone-700">{inv.invoice_number}</td>
+                          <td className="py-4 px-4 text-center font-mono text-stone-600">{convertToPersianDigits(inv.invoice_date || "1405/01/01")}</td>
                           <td className="py-4 px-4 text-center">
                             {inv.is_final ? (
                               <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block">
@@ -845,16 +852,16 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                               </span>
                             )}
                           </td>
-                          <td className="py-4 px-4 text-left font-semibold text-slate-800 font-mono">{formatCurrency(inv.gross_amount)}</td>
-                          <td className="py-4 px-4 text-left text-rose-600 font-mono">
+                          <td className="py-4 px-4 text-center font-semibold text-slate-800 font-mono">{formatCurrency(inv.gross_amount)}</td>
+                          <td className="py-4 px-4 text-center text-rose-600 font-mono">
                             -{formatCurrency(inv.retention_bond)}
                             <span className="text-[9px] text-stone-400 block font-sans">({convertToPersianDigits(inv.retention_rate_used !== undefined ? inv.retention_rate_used : 10)}٪)</span>
                           </td>
-                          <td className="py-4 px-4 text-left text-rose-600 font-mono">
+                          <td className="py-4 px-4 text-center text-rose-600 font-mono">
                             -{formatCurrency(inv.insurance)}
                             <span className="text-[9px] text-stone-400 block font-sans">({convertToPersianDigits(inv.insurance_rate_used !== undefined ? inv.insurance_rate_used : 5)}٪)</span>
                           </td>
-                          <td className="py-4 px-4 text-left text-slate-900 font-black font-mono">{formatCurrency(inv.net_amount)}</td>
+                          <td className="py-4 px-4 text-center text-slate-900 font-black font-mono">{formatCurrency(inv.net_amount)}</td>
                           <td className="py-4 px-4 text-center">
                             <div className="flex justify-center items-center gap-1.5">
                               <button
@@ -919,21 +926,21 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 </div>
               ) : (
                 <div className="overflow-x-auto text-xs">
-                  <table className="w-full text-right">
+                  <table className="w-full text-center">
                     <thead className="bg-slate-50 text-stone-500 font-bold border-b border-stone-100">
                       <tr>
-                        <th className="py-3 px-4">تاریخ پرداخت</th>
-                        <th className="py-3 px-4 text-left">مبلغ واریزی نهایی</th>
-                        <th className="py-3 px-4">شرح بابت پرداخت سند</th>
+                        <th className="py-3 px-4 text-center">تاریخ پرداخت</th>
+                        <th className="py-3 px-4 text-center text-emerald-700">مبلغ واریزی نهایی</th>
+                        <th className="py-3 px-4 text-center">شرح بابت پرداخت سند</th>
                         <th className="py-3 px-4 text-center">عملیات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100/50">
                       {filteredPayments.map((pay) => (
                         <tr key={pay.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-4 px-4 font-bold text-stone-700 font-mono">{convertToPersianDigits(pay.payment_date)}</td>
-                          <td className="py-4 px-4 text-left text-emerald-700 font-black font-mono">{formatCurrency(pay.amount)}</td>
-                          <td className="py-4 px-4 text-xs text-stone-600">{pay.description || "بدون توضیحات مازاد"}</td>
+                          <td className="py-4 px-4 text-center font-bold text-stone-700 font-mono">{convertToPersianDigits(pay.payment_date)}</td>
+                          <td className="py-4 px-4 text-center text-emerald-700 font-black font-mono">{formatCurrency(pay.amount)}</td>
+                          <td className="py-4 px-4 text-center text-xs text-stone-600">{pay.description || "بدون توضیحات مازاد"}</td>
                           <td className="py-4 px-4 text-center">
                             <div className="flex justify-center items-center gap-1.5">
                               <button
@@ -1002,6 +1009,19 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                   onChange={(e) => setGrossAmount(formatInputNumber(e.target.value))}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-con-main text-right pr-3 pl-3 font-mono font-bold"
                   dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-500 mb-1.5">تاریخ ثبت صورت‌وضعیت (هجری شمسی)</label>
+                <input
+                  id="invoice-date-input"
+                  type="text"
+                  required
+                  placeholder="مثال: ۱۴۰۵/۰۳/۰۱"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-con-main text-right font-mono"
                 />
                 <p className="text-[10px] text-stone-400 mt-2 leading-relaxed">
                   * توجه: پس از کلیک روی ثبت، کسورات قانونی شامل حسن‌انجام‌کار ({profile.retention_rate !== undefined ? profile.retention_rate : 10}٪) و بیمه ({profile.insurance_rate !== undefined ? profile.insurance_rate : 5}٪) اعمال می‌گردند.
@@ -1328,6 +1348,18 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-stone-500 mb-1.5">تاریخ ثبت صورت‌وضعیت (هجری شمسی)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="مثال: ۱۴۰۵/۰۳/۰۱"
+                  value={editingInvoiceDate}
+                  onChange={(e) => setEditingInvoiceDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-950 text-right font-mono"
+                />
+              </div>
+
               <div className="flex items-center gap-2 pt-1 pb-2">
                 <input
                   id="edit-invoice-is-final-checkbox"
@@ -1447,20 +1479,25 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                 font-size: 11pt !important;
                 direction: rtl !important;
               }
-              /* Hide everything else */
-              #root, #root-container, .fixed, .no-print, button, select, input {
-                display: none !important;
+              /* Hide all elements on the body during print */
+              body * {
                 visibility: hidden !important;
+              }
+              /* Bring back only the printable area and its offspring */
+              #printable-area-contractor,
+              #printable-area-contractor * {
+                visibility: visible !important;
               }
               #printable-area-contractor {
                 display: block !important;
-                visibility: visible !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white;
-                padding: 10px;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
               }
               .border-stone-200 {
                 border-color: #666 !important;
@@ -1474,29 +1511,31 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
           <motion.div 
             initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 no-print"
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 printing-modal-card"
           >
-            {/* Modal actions panel */}
-            <div className="flex items-center justify-between border-b pb-4 mb-6">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-con-main" />
-                <h3 className="font-extrabold text-base">پیش‌نمایش سند چاپی صورت وضعیت پیمانکار</h3>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  id="trigger-print-btn"
-                  onClick={() => window.print()}
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>اجرای پرینت (یا ذخیره PDF)</span>
-                </button>
-                <button
-                  onClick={() => setShowPrintModal(false)}
-                  className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  بستن پیش‌نمایش
-                </button>
+            {/* Modal actions panel - hidden on print */}
+            <div className="no-print">
+              <div className="flex items-center justify-between border-b pb-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-con-main" />
+                  <h3 className="font-extrabold text-base">پیش‌نمایش سند چاپی صورت وضعیت پیمانکار</h3>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    id="trigger-print-btn"
+                    onClick={() => window.print()}
+                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>اجرای پرینت (یا ذخیره PDF)</span>
+                  </button>
+                  <button
+                    onClick={() => setShowPrintModal(false)}
+                    className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    بستن پیش‌نمایش
+                  </button>
+                </div>
               </div>
             </div>
 

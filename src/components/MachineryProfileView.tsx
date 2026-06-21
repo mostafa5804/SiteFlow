@@ -1008,20 +1008,25 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 font-size: 11pt !important;
                 direction: rtl !important;
               }
-              /* Hide everything else */
-              #root, #root-container, .fixed, .no-print, button, select, input {
-                display: none !important;
+              /* Hide all elements on the body during print */
+              body * {
                 visibility: hidden !important;
+              }
+              /* Bring back only the printable area and its offspring */
+              #printable-area-machinery,
+              #printable-area-machinery * {
+                visibility: visible !important;
               }
               #printable-area-machinery {
                 display: block !important;
-                visibility: visible !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white;
-                padding: 10px;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
               }
               .border-stone-200 {
                 border-color: #666 !important;
@@ -1035,14 +1040,15 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
           <motion.div 
             initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 no-print"
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 md:p-8 overflow-y-auto max-h-[90vh] text-right text-slate-800 printing-modal-card"
           >
-            {/* Modal actions panel */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 mb-6 gap-3">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-mac-main" />
-                <h3 className="font-extrabold text-base">پیش‌نمایش سند چاپی صورت وضعیت مالک</h3>
-              </div>
+            {/* Modal actions panel - hidden on print */}
+            <div className="no-print">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 mb-6 gap-3">
+                <div className="flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-mac-main" />
+                  <h3 className="font-extrabold text-base">پیش‌نمایش سند چاپی صورت وضعیت مالک</h3>
+                </div>
               
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -1080,9 +1086,10 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Printable Document Box */}
-            <div 
+          {/* Printable Document Box */}
+          <div 
               id="printable-area-machinery" 
               className="bg-white border-2 border-stone-300 p-8 rounded-xl font-sans text-xs flex flex-col space-y-6 leading-relaxed"
               style={{ direction: "rtl" }}
@@ -1280,10 +1287,9 @@ export default function MachineryProfileView({ machineId, onBack, onRefreshNotif
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-500 mb-1">شماره پلاک شهربانی</label>
+                <label className="block text-[11px] font-bold text-stone-500 mb-1">شماره پلاک شهربانی (اختیاری)</label>
                 <input
                   type="text"
-                  required
                   value={editLicensePlate}
                   onChange={(e) => setEditLicensePlate(e.target.value)}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs font-mono"

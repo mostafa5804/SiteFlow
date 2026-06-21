@@ -1,10 +1,9 @@
 import express from "express";
 import path from "path";
 import Database from "better-sqlite3";
-import { createServer as createViteServer } from "vite";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Set up JSON body parser with generous limit for bulk excel imports
 app.use(express.json({ limit: "15mb" }));
@@ -13,7 +12,9 @@ import fs from "fs";
 
 // Initialize SQLite database path from config or defaults
 const dbConfigPath = path.join(process.cwd(), "db_config.json");
-let dbPath = path.join(process.cwd(), "inventory.db");
+let dbPath = process.env.PORTAL_DATABASE_DIR 
+  ? path.join(process.env.PORTAL_DATABASE_DIR, "inventory.db") 
+  : path.join(process.cwd(), "inventory.db");
 
 if (fs.existsSync(dbConfigPath)) {
   try {
@@ -178,6 +179,7 @@ function initDbTablesAndMigrations(databaseInstance: typeof db) {
   try { databaseInstance.exec("ALTER TABLE contractor_invoices ADD COLUMN retention_rate_used REAL DEFAULT 10"); } catch (e) {}
   try { databaseInstance.exec("ALTER TABLE contractor_invoices ADD COLUMN insurance_rate_used REAL DEFAULT 5"); } catch (e) {}
   try { databaseInstance.exec("ALTER TABLE contractor_invoices ADD COLUMN tax_value_used REAL DEFAULT 0"); } catch (e) {}
+  try { databaseInstance.exec("ALTER TABLE contractor_invoices ADD COLUMN invoice_date TEXT"); } catch (e) {}
 
   try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN contract_no TEXT"); } catch (e) {}
   try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN appendix_no TEXT"); } catch (e) {}
@@ -191,104 +193,120 @@ function initDbTablesAndMigrations(databaseInstance: typeof db) {
   try { databaseInstance.exec("ALTER TABLE machinery ADD COLUMN is_archived INTEGER DEFAULT 0"); } catch (e) {}
   try { databaseInstance.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('logo_img', '')").run(); } catch (e) {}
 
-  // Seed initial data if tables are empty
-  const productCount = databaseInstance.prepare("SELECT count(*) as count FROM products").get() as { count: number };
-  if (productCount.count === 0) {
-    // Insert initial products
-    const insertProduct = databaseInstance.prepare("INSERT INTO products (code, name, unit, category, min_stock) VALUES (?, ?, ?, ?, ?)");
-    insertProduct.run("PR-101", "کابل برق ۳ در ۲.۵ افشان البرز", "متر", "تجهیزات برقی", 200);
-    insertProduct.run("PR-102", "کلید مینیاتوری تک فاز ۱۶ آمپر هیوندای", "عدد", "تجهیزات برقی", 10);
-    insertProduct.run("PR-103", "لوله گالوانیزه ۲ اینچ فوق سنگین ساوه", "شاخه", "لوله و اتصالات", 15);
-    insertProduct.run("PR-104", "الکترود جوشکاری ۳ میلی‌متر میکا", "کیلوگرم", "ابزار مصرفی", 20);
-    insertProduct.run("PR-105", "پمپ آب دو اسب بشقابی پنتاکس", "دستگاه", "ماشین‌آلات", 2);
+  // Check if seeding has already been performed in the past
+  let alreadySeededFlag = false;
+  try {
+    const seededSetting = databaseInstance.prepare("SELECT value FROM settings WHERE key = 'is_seeded'").get() as { value: string } | undefined;
+    if (seededSetting && seededSetting.value === "true") {
+      alreadySeededFlag = true;
+    }
+  } catch (e) {}
 
-    // Insert initial persons
-    const insertPerson = databaseInstance.prepare("INSERT INTO persons (name, role) VALUES (?, ?)");
-    insertPerson.run("شرکت رویان کابل البرز", "تأمین‌کننده");
-    insertPerson.run("مهندس رضایی - سرپرست کارگاه", "تحویل‌گیرنده");
-    insertPerson.run("کالای برق شریعتی", "تأمین‌کننده");
-    insertPerson.run("واحد نگهداری و تعمیرات سوله ۴", "بخش مصرف‌کننده");
+  if (!alreadySeededFlag) {
+    // Seed initial data if tables are empty
+    const productCount = databaseInstance.prepare("SELECT count(*) as count FROM products").get() as { count: number };
+    if (productCount.count === 0) {
+      // Insert initial products
+      const insertProduct = databaseInstance.prepare("INSERT INTO products (code, name, unit, category, min_stock) VALUES (?, ?, ?, ?, ?)");
+      insertProduct.run("PR-101", "کابل برق ۳ در ۲.۵ افشان البرز", "متر", "تجهیزات برقی", 200);
+      insertProduct.run("PR-102", "کلید مینیاتوری تک فاز ۱۶ آمپر هیوندای", "عدد", "تجهیزات برقی", 10);
+      insertProduct.run("PR-103", "لوله گالوانیزه ۲ اینچ فوق سنگین ساوه", "شاخه", "لوله و اتصالات", 15);
+      insertProduct.run("PR-104", "الکترود جوشکاری ۳ میلی‌متر میکا", "کیلوگرم", "ابزار مصرفی", 20);
+      insertProduct.run("PR-105", "پمپ آب دو اسب بشقابی پنتاکس", "دستگاه", "ماشین‌آلات", 2);
 
-    // Get generated IDs
-    const rPerson = databaseInstance.prepare("SELECT id FROM persons WHERE name = ?").get("شرکت رویان کابل البرز") as { id: number };
-    const rReceiver = databaseInstance.prepare("SELECT id FROM persons WHERE name = ?").get("مهندس رضایی - سرپرست کارگاه") as { id: number };
+      // Insert initial persons
+      const insertPerson = databaseInstance.prepare("INSERT INTO persons (name, role) VALUES (?, ?)");
+      insertPerson.run("شرکت رویان کابل البرز", "تأمین‌کننده");
+      insertPerson.run("مهندس رضایی - سرپرست کارگاه", "تحویل‌گیرنده");
+      insertPerson.run("کالای برق شریعتی", "تأمین‌کننده");
+      insertPerson.run("واحد نگهداری و تعمیرات سوله ۴", "بخش مصرف‌کننده");
 
-    const rP1 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-101") as { id: number };
-    const rP2 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-102") as { id: number };
-    const rP3 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-103") as { id: number };
+      // Get generated IDs
+      const rPerson = databaseInstance.prepare("SELECT id FROM persons WHERE name = ?").get("شرکت رویان کابل البرز") as { id: number };
+      const rReceiver = databaseInstance.prepare("SELECT id FROM persons WHERE name = ?").get("مهندس رضایی - سرپرست کارگاه") as { id: number };
 
-    // Insert initial Document Header (Incoming)
-    const insertHeader = databaseInstance.prepare("INSERT INTO document_headers (type, date, person_id, description) VALUES (?, ?, ?, ?)");
-    const header1Result = insertHeader.run("incoming", "1405/03/01", rPerson.id, "خرید مستقیم کالا بابت تجهيز اولیه کارگاه");
-    const doc1Id = header1Result.lastInsertRowid;
+      const rP1 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-101") as { id: number };
+      const rP2 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-102") as { id: number };
+      const rP3 = databaseInstance.prepare("SELECT id FROM products WHERE code = ?").get("PR-103") as { id: number };
 
-    // Insert rows for Doc 1
-    const insertRow = databaseInstance.prepare("INSERT INTO document_rows (document_id, product_id, quantity) VALUES (?, ?, ?)");
-    insertRow.run(doc1Id, rP1.id, 500); // 500 meters
-    insertRow.run(doc1Id, rP2.id, 80);  // 80 pieces
-    insertRow.run(doc1Id, rP3.id, 30);  // 30 shafts
+      // Insert initial Document Header (Incoming)
+      const insertHeader = databaseInstance.prepare("INSERT INTO document_headers (type, date, person_id, description) VALUES (?, ?, ?, ?)");
+      const header1Result = insertHeader.run("incoming", "1405/03/01", rPerson.id, "خرید مستقیم کالا بابت تجهيز اولیه کارگاه");
+      const doc1Id = header1Result.lastInsertRowid;
 
-    // Insert initial Document Header (Outgoing)
-    const header2Result = insertHeader.run("outgoing", "1405/03/05", rReceiver.id, "تحویل اقلام سیم‌کشی سیستم روشنایی سوله شماره ۲");
-    const doc2Id = header2Result.lastInsertRowid;
+      // Insert rows for Doc 1
+      const insertRow = databaseInstance.prepare("INSERT INTO document_rows (document_id, product_id, quantity) VALUES (?, ?, ?)");
+      insertRow.run(doc1Id, rP1.id, 500); // 500 meters
+      insertRow.run(doc1Id, rP2.id, 80);  // 80 pieces
+      insertRow.run(doc1Id, rP3.id, 30);  // 30 shafts
 
-    // Insert rows for Doc 2
-    insertRow.run(doc2Id, rP1.id, 120); // 120 meters used
-    insertRow.run(doc2Id, rP2.id, 15);  // 15 pieces used
-  }
+      // Insert initial Document Header (Outgoing)
+      const header2Result = insertHeader.run("outgoing", "1405/03/05", rReceiver.id, "تحویل اقلام سیم‌کشی سیستم روشنایی سوله شماره ۲");
+      const doc2Id = header2Result.lastInsertRowid;
 
-  // Seed contractors, machinery, and notifications if they are empty
-  const contractorCount = databaseInstance.prepare("SELECT count(*) as count FROM contractors").get() as { count: number };
-  if (contractorCount.count === 0) {
-    const insertCont = databaseInstance.prepare("INSERT INTO contractors (name, activity_field) VALUES (?, ?)");
-    const c1 = insertCont.run("آرماتوربندی برادران مرادی", "اسکلت بتنی و فونداسیون").lastInsertRowid;
-    const c2 = insertCont.run("تأسیسات الکتریکی پارس نو", "سیم‌کشی و روشنایی صنعتی").lastInsertRowid;
+      // Insert rows for Doc 2
+      insertRow.run(doc2Id, rP1.id, 120); // 120 meters used
+      insertRow.run(doc2Id, rP2.id, 15);  // 15 pieces used
+    }
 
-    const insertContInv = databaseInstance.prepare(`
-      INSERT INTO contractor_invoices (contractor_id, invoice_number, gross_amount, retention_bond, insurance, net_amount)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    insertContInv.run(c1, "ص-مرادی-۰۱", 450000000, 45000000, 22500000, 382500000);
-    insertContInv.run(c1, "ص-مرادی-۰۲", 600000000, 60000000, 30000000, 510000000);
-    insertContInv.run(c2, "ص-پارس-۱۰۱", 300000000, 30000000, 15000000, 255000000);
+    // Seed contractors, machinery, and notifications if they are empty
+    const contractorCount = databaseInstance.prepare("SELECT count(*) as count FROM contractors").get() as { count: number };
+    if (contractorCount.count === 0) {
+      const insertCont = databaseInstance.prepare("INSERT INTO contractors (name, activity_field) VALUES (?, ?)");
+      const c1 = insertCont.run("آرماتوربندی برادران مرادی", "اسکلت بتنی و فونداسیون").lastInsertRowid;
+      const c2 = insertCont.run("تأسیسات الکتریکی پارس نو", "سیم‌کشی و روشنایی صنعتی").lastInsertRowid;
 
-    const insertContPay = databaseInstance.prepare(`
-      INSERT INTO contractor_payments (contractor_id, payment_date, amount, description)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertContPay.run(c1, "1405/03/02", 200000000, "پیش‌پرداخت اول قالب‌بندی اسکلت");
-    insertContPay.run(c1, "1405/03/10", 350000000, "مساعده بابت تسویه آرماتور بتنی فاز ۱");
-    insertContPay.run(c2, "1405/03/06", 150000000, "پیش‌پرداخت خرید کابل و کلید مینیاتوری");
-  }
+      const insertContInv = databaseInstance.prepare(`
+        INSERT INTO contractor_invoices (contractor_id, invoice_number, gross_amount, retention_bond, insurance, net_amount)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      insertContInv.run(c1, "ص-مرادی-۰۱", 450000000, 45000000, 22500000, 382500000);
+      insertContInv.run(c1, "ص-مرادی-۰۲", 600000000, 60000000, 30000000, 510000000);
+      insertContInv.run(c2, "ص-پارس-۱۰۱", 300000000, 30000000, 15000000, 255000000);
 
-  const machineryCount = databaseInstance.prepare("SELECT count(*) as count FROM machinery").get() as { count: number };
-  if (machineryCount.count === 0) {
-    const insertMach = databaseInstance.prepare("INSERT INTO machinery (owner_name, machine_type, license_plate, contract_type, base_rent) VALUES (?, ?, ?, ?, ?)");
-    const m1 = insertMach.run("مهندس جمشیدی", "گریدر کاترپیلار ۱۴۰H", "۴۵ د ۸۷۶ ایران ۲۳", "hourly", 4500000).lastInsertRowid;
-    const m2 = insertMach.run("حاج ابراهیمی", "بولدوزر کوماتسو D155", "۱۲ ع ۵۴۳ ایران ۹۲", "daily", 180000000).lastInsertRowid;
+      const insertContPay = databaseInstance.prepare(`
+        INSERT INTO contractor_payments (contractor_id, payment_date, amount, description)
+        VALUES (?, ?, ?, ?)
+      `);
+      insertContPay.run(c1, "1405/03/02", 200000000, "پیش‌پرداخت اول قالب‌بندی اسکلت");
+      insertContPay.run(c1, "1405/03/10", 350000000, "مساعده بابت تسویه آرماتور بتنی فاز ۱");
+      insertContPay.run(c2, "1405/03/06", 150000000, "پیش‌پرداخت خرید کابل و کلید مینیاتوری");
+    }
 
-    const insertMachPerf = databaseInstance.prepare(`
-      INSERT INTO machine_performances (machine_id, month_name, month_index, performance_value, total_calculated_amount)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    insertMachPerf.run(m1, "فروردین", 1, 120, 120 * 4500000);
-    insertMachPerf.run(m1, "اردیبهشت", 2, 160, 160 * 4500000);
-    insertMachPerf.run(m2, "فروردین", 1, 20, Math.round(20 * (180000000 / 31)));
-    insertMachPerf.run(m2, "اردیبهشت", 2, 25, Math.round(25 * (180000000 / 31)));
+    const machineryCount = databaseInstance.prepare("SELECT count(*) as count FROM machinery").get() as { count: number };
+    if (machineryCount.count === 0) {
+      const insertMach = databaseInstance.prepare("INSERT INTO machinery (owner_name, machine_type, license_plate, contract_type, base_rent) VALUES (?, ?, ?, ?, ?)");
+      const m1 = insertMach.run("مهندس جمشیدی", "گریدر کاترپیلار ۱۴۰H", "۴۵ د ۸۷۶ ایران ۲۳", "hourly", 4500000).lastInsertRowid;
+      const m2 = insertMach.run("حاج ابراهیمی", "بولدوزر کوماتسو D155", "۱۲ ع ۵۴۳ ایران ۹۲", "daily", 180000000).lastInsertRowid;
 
-    const insertMachPay = databaseInstance.prepare(`
-      INSERT INTO machine_payments (machine_id, payment_date, amount, description)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertMachPay.run(m1, "1405/03/01", 300000000, "واریز نقدی بابت کارکرد سنگین فروردین ماه");
-    insertMachPay.run(m2, "1405/03/05", 100000000, "پیش‌پرداخت اول اجاره ماهانه فروردین");
-  }
+      const insertMachPerf = databaseInstance.prepare(`
+        INSERT INTO machine_performances (machine_id, month_name, month_index, performance_value, total_calculated_amount)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      insertMachPerf.run(m1, "فروردین", 1, 120, 120 * 4500000);
+      insertMachPerf.run(m1, "اردیبهشت", 2, 160, 160 * 4500000);
+      insertMachPerf.run(m2, "فروردین", 1, 20, Math.round(20 * (180000000 / 31)));
+      insertMachPerf.run(m2, "اردیبهشت", 2, 25, Math.round(25 * (180000000 / 31)));
 
-  const notificationsCount = databaseInstance.prepare("SELECT count(*) as count FROM notifications").get() as { count: number };
-  if (notificationsCount.count === 0) {
-    const insertNotif = databaseInstance.prepare("INSERT INTO notifications (title, message, type, is_read, date) VALUES (?, ?, ?, ?, ?)");
-    insertNotif.run("سررسید چک آرماتوربندی", "موعد پاس شدن چک تضمین آرماتور فاز ۱ به مبلغ ۲۵۰ میلیون ریال", "reminder", 0, "1405/03/15");
-    insertNotif.run("کسورات صورت‌وضعیت نهایی", "کسورات قانونی صورت‌وضعیت جدید برادران مرادی با موفقیت محاسبه گردید.", "invoice", 0, "1405/03/02");
+      const insertMachPay = databaseInstance.prepare(`
+        INSERT INTO machine_payments (machine_id, payment_date, amount, description)
+        VALUES (?, ?, ?, ?)
+      `);
+      insertMachPay.run(m1, "1405/03/01", 300000000, "واریز نقدی بابت کارکرد سنگین فروردین ماه");
+      insertMachPay.run(m2, "1405/03/05", 100000000, "پیش‌پرداخت اول اجاره ماهانه فروردین");
+    }
+
+    const notificationsCount = databaseInstance.prepare("SELECT count(*) as count FROM notifications").get() as { count: number };
+    if (notificationsCount.count === 0) {
+      const insertNotif = databaseInstance.prepare("INSERT INTO notifications (title, message, type, is_read, date) VALUES (?, ?, ?, ?, ?)");
+      insertNotif.run("سررسید چک آرماتوربندی", "موعد پاس شدن چک تضمین آرماتور فاز ۱ به مبلغ ۲۵۰ میلیون ریال", "reminder", 0, "1405/03/15");
+      insertNotif.run("کسورات صورت‌وضعیت نهایی", "کسورات قانونی صورت‌وضعیت جدید برادران مرادی با موفقیت محاسبه گردید.", "invoice", 0, "1405/03/02");
+    }
+
+    // Insert seeded flag to true so that we never run this again even if tables are empty
+    try {
+      databaseInstance.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('is_seeded', 'true')").run();
+    } catch (e) {}
   }
 }
 
@@ -914,29 +932,39 @@ app.get("/api/reports/summary", (req, res) => {
       }, 0);
 
       // 4. Contractor work gross done in this month index
-      // Since contractor invoices don't have a date, we estimate monthly work using of invoice index sequence:
-      // First invoice = Month 1, second = Month 2, etc, or mapping them sequentially
-      const allConInvoices = db.prepare("SELECT id, contractor_id, gross_amount, net_amount FROM contractor_invoices").all() as any[];
+      const allConInvoices = db.prepare("SELECT id, contractor_id, gross_amount, net_amount, invoice_date FROM contractor_invoices").all() as any[];
       let conInvoicedNet = 0;
       
-      // For each contractor, count invoices and associate index
-      const contractorInvoicesMap: Record<number, any[]> = {};
-      allConInvoices.forEach(inv => {
-        if (!contractorInvoicesMap[inv.contractor_id]) {
-          contractorInvoicesMap[inv.contractor_id] = [];
+      const invoicesWithMatchingDate = allConInvoices.filter(inv => {
+        if (!inv.invoice_date) return false;
+        const parts = inv.invoice_date.split("/");
+        if (parts.length >= 2) {
+          return parseInt(parts[1], 10) === m.index;
         }
-        contractorInvoicesMap[inv.contractor_id].push(inv);
+        return false;
       });
-      
-      // Sum invoices where sequence matches month index (sequence is 1-indexed)
-      Object.keys(contractorInvoicesMap).forEach(cid => {
-        const contractorId = Number(cid);
-        const invList = contractorInvoicesMap[contractorId].sort((a, b) => a.id - b.id);
-        const invForThisMonth = invList[m.index - 1]; // first invoice is Month 1 (Farvardin)
-        if (invForThisMonth) {
-          conInvoicedNet += (invForThisMonth.net_amount || 0);
-        }
-      });
+
+      if (invoicesWithMatchingDate.length > 0) {
+        conInvoicedNet = invoicesWithMatchingDate.reduce((sum, inv) => sum + (inv.net_amount || 0), 0);
+      } else {
+        // Fallback to sequential index estimation for backward compatibility
+        const contractorInvoicesMap: Record<number, any[]> = {};
+        allConInvoices.forEach(inv => {
+          if (!contractorInvoicesMap[inv.contractor_id]) {
+            contractorInvoicesMap[inv.contractor_id] = [];
+          }
+          contractorInvoicesMap[inv.contractor_id].push(inv);
+        });
+        
+        Object.keys(contractorInvoicesMap).forEach(cid => {
+          const contractorId = Number(cid);
+          const invList = contractorInvoicesMap[contractorId].sort((a, b) => a.id - b.id);
+          const invForThisMonth = invList[m.index - 1]; // first invoice is Month 1 (Farvardin)
+          if (invForThisMonth) {
+            conInvoicedNet += (invForThisMonth.net_amount || 0);
+          }
+        });
+      }
 
       return {
         ...m,
@@ -980,7 +1008,9 @@ app.get("/api/contractors", (req, res) => {
         total_insurance,
         total_net,
         total_paid,
-        remaining_balance
+        remaining_balance,
+        invoices,
+        payments
       };
     });
     res.json(resList);
@@ -1182,7 +1212,7 @@ app.delete("/api/contractors/:id", (req, res) => {
 app.post("/api/contractors/:id/invoices", (req, res) => {
   try {
     const { id } = req.params;
-    const { invoice_number, gross_amount, is_final } = req.body;
+    const { invoice_number, gross_amount, is_final, invoice_date } = req.body;
     if (!invoice_number || !gross_amount || isNaN(Number(gross_amount))) {
       return res.status(400).json({ error: "اطلاعات صورت‌وضعیت الزامی است" });
     }
@@ -1213,9 +1243,9 @@ app.post("/api/contractors/:id/invoices", (req, res) => {
     const net_amount = Number(gross_amount) - retention_bond - insurance + tax_value;
 
     db.prepare(`
-      INSERT INTO contractor_invoices (contractor_id, invoice_number, gross_amount, retention_bond, insurance, net_amount, is_final, retention_rate_used, insurance_rate_used, tax_value_used)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, invoice_number, Number(gross_amount), retention_bond, insurance, net_amount, is_final_val, r_rate, is_exempt ? 0 : i_rate, tax_value);
+      INSERT INTO contractor_invoices (contractor_id, invoice_number, gross_amount, retention_bond, insurance, net_amount, is_final, retention_rate_used, insurance_rate_used, tax_value_used, invoice_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, invoice_number, Number(gross_amount), retention_bond, insurance, net_amount, is_final_val, r_rate, is_exempt ? 0 : i_rate, tax_value, invoice_date || "1405/01/01");
 
     db.prepare("INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)")
       .run("ثبت صورت‌وضعیت", `صورت‌وضعیت شماره "${invoice_number}" برای پیمانکار "${c.name}" به مبلغ خالص ${net_amount.toLocaleString("fa-IR")} ریال ثبت شد.`, "invoice");
@@ -1239,7 +1269,7 @@ app.delete("/api/contractors/invoices/:id", (req, res) => {
 app.put("/api/contractors/invoices/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const { invoice_number, gross_amount, is_final } = req.body;
+    const { invoice_number, gross_amount, is_final, invoice_date } = req.body;
     if (!invoice_number || !gross_amount || isNaN(Number(gross_amount))) {
       return res.status(400).json({ error: "اطلاعات صورت‌وضعیت ناقص است" });
     }
@@ -1276,9 +1306,9 @@ app.put("/api/contractors/invoices/:id", (req, res) => {
 
     db.prepare(`
       UPDATE contractor_invoices 
-      SET invoice_number = ?, gross_amount = ?, retention_bond = ?, insurance = ?, net_amount = ?, is_final = ?, retention_rate_used = ?, insurance_rate_used = ?, tax_value_used = ?
+      SET invoice_number = ?, gross_amount = ?, retention_bond = ?, insurance = ?, net_amount = ?, is_final = ?, retention_rate_used = ?, insurance_rate_used = ?, tax_value_used = ?, invoice_date = ?
       WHERE id = ?
-    `).run(invoice_number, Number(gross_amount), retention_bond, insurance, net_amount, is_final_val, r_rate, is_exempt ? 0 : i_rate, tax_value, id);
+    `).run(invoice_number, Number(gross_amount), retention_bond, insurance, net_amount, is_final_val, r_rate, is_exempt ? 0 : i_rate, tax_value, invoice_date || inv.invoice_date || "1405/01/01", id);
 
     res.json({ success: true, message: "صورت‌وضعیت با موفقیت ویرایش و موازنه مالی بروز گردید." });
   } catch (err: any) {
@@ -1359,7 +1389,9 @@ app.get("/api/machinery", (req, res) => {
         total_performance,
         total_calculated,
         total_paid,
-        remaining_balance
+        remaining_balance,
+        performance: performances,
+        payments
       };
     });
     res.json(resList);
@@ -1405,7 +1437,7 @@ app.post("/api/machinery", (req, res) => {
       contract_no, appendix_no, contract_start, contract_end, leap_year_adjusted, appendix_rent, appendix_start_month
     } = req.body;
 
-    if (!owner_name || !machine_type || !license_plate || !contract_type || base_rent === undefined) {
+    if (!owner_name || !machine_type || !contract_type || base_rent === undefined) {
       return res.status(400).json({ error: "اطلاعات دستگاه ناقص است" });
     }
 
@@ -1415,7 +1447,7 @@ app.post("/api/machinery", (req, res) => {
         contract_no, appendix_no, contract_start, contract_end, leap_year_adjusted, appendix_rent, appendix_start_month
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      owner_name, machine_type, license_plate, contract_type, Number(base_rent), machine_category || "سنگین",
+      owner_name, machine_type, license_plate || "", contract_type, Number(base_rent), machine_category || "سنگین",
       contract_no || null, appendix_no || null, contract_start || null, contract_end || null,
       leap_year_adjusted ? 1 : 0,
       appendix_rent !== undefined && appendix_rent !== null ? Number(appendix_rent) : null,
@@ -1437,7 +1469,7 @@ app.put("/api/machinery/:id", (req, res) => {
       contract_no, appendix_no, contract_start, contract_end, leap_year_adjusted, appendix_rent, appendix_start_month
     } = req.body;
 
-    if (!owner_name || !machine_type || !license_plate || !contract_type || base_rent === undefined) {
+    if (!owner_name || !machine_type || !contract_type || base_rent === undefined) {
       return res.status(400).json({ error: "اطلاعات دستگاه ناقص است" });
     }
 
@@ -1448,7 +1480,7 @@ app.put("/api/machinery/:id", (req, res) => {
           appendix_rent = ?, appendix_start_month = ?
       WHERE id = ?
     `).run(
-      owner_name, machine_type, license_plate, contract_type, Number(base_rent), machine_category || "سنگین",
+      owner_name, machine_type, license_plate || "", contract_type, Number(base_rent), machine_category || "سنگین",
       contract_no || null, appendix_no || null, contract_start || null, contract_end || null,
       leap_year_adjusted ? 1 : 0,
       appendix_rent !== undefined && appendix_rent !== null ? Number(appendix_rent) : null,
@@ -1978,21 +2010,26 @@ app.post("/api/restore-db", express.raw({ type: "application/octet-stream", limi
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    let distPath = path.join(process.cwd(), "dist");
+    if (!fs.existsSync(path.join(distPath, "index.html")) && fs.existsSync(path.join(__dirname, "index.html"))) {
+      distPath = __dirname;
+    }
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
+  const bindAddress = process.env.PORTAL_BIND_ADDRESS || "0.0.0.0";
+  app.listen(PORT, bindAddress, () => {
+    console.log(`[Server] Running on http://${bindAddress}:${PORT}`);
   });
 }
 

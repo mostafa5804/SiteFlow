@@ -823,7 +823,7 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
                           const cPercentage = (c.total_gross / initAmt) * 100;
                           return (
                             <div className="flex flex-wrap items-center gap-1.5 mt-1" onClick={(e) => e.stopPropagation()}>
-                              <div className="w-16 bg-stone-100 rounded-full h-1 overflow-hidden" title={`ارزش اولیه: ${formatCurrency(initAmt)} ریال`}>
+                              <div className="w-16 bg-stone-100 rounded-full h-1 overflow-hidden" title={`ارزش اولیه: ${formatCurrency(initAmt)}`}>
                                 <div 
                                   className={`h-full ${
                                     cPercentage > 125 ? "bg-red-500" :
@@ -1132,76 +1132,80 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
 
       {/* Printing Modal for Consolidated Report */}
       {showPrintModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in no-print">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-5xl w-full overflow-hidden text-right no-print flex flex-col max-h-[90vh]"
+            className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-5xl w-full overflow-hidden text-right printing-modal-card flex flex-col max-h-[90vh]"
           >
-            {/* Modal Header */}
-            <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-extrabold text-sm">پیش‌نمایش و تنظیمات چاپ گزارش تجمیعی پیمانکاران</h3>
+            {/* Modal Header - Hidden on Print */}
+            <div className="no-print">
+              <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-indigo-400" />
+                  <h3 className="font-extrabold text-sm">پیش‌نمایش و تنظیمات چاپ گزارش تجمیعی پیمانکاران</h3>
+                </div>
+                <button 
+                  onClick={() => setShowPrintModal(false)}
+                  className="text-slate-400 hover:text-white transition-all cursor-pointer text-xl"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button 
-                onClick={() => setShowPrintModal(false)}
-                className="text-slate-400 hover:text-white transition-all cursor-pointer text-xl"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Print Settings & Filters */}
-            <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-semibold shrink-0">
-              <div>
-                <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
-                <select
-                  value={printReportType}
-                  onChange={(e) => setPrintReportType(e.target.value as "summary" | "detailed")}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="summary">تجمیعی کلی (خلاصه تراز اشخاص)</option>
-                  <option value="detailed">مشروح تفکیکی (نمایش جزء به جزء قراردادها)</option>
-                </select>
-              </div>
+            {/* Print Settings & Filters - Hidden on Print */}
+            <div className="no-print">
+              <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-semibold shrink-0">
+                <div>
+                  <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
+                  <select
+                    value={printReportType}
+                    onChange={(e) => setPrintReportType(e.target.value as "summary" | "detailed")}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="summary">تجمیعی کلی (خلاصه تراز اشخاص)</option>
+                    <option value="detailed">مشروح تفکیکی (نمایش جزء به جزء قراردادها)</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-stone-500 mb-1">فیلتر شخص پیمانکار:</label>
-                <select
-                  value={printContractorFilter}
-                  onChange={(e) => setPrintContractorFilter(e.target.value)}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="all">همه پیمانکاران</option>
-                  {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-stone-500 mb-1">فیلتر شخص پیمانکار:</label>
+                  <select
+                    value={printContractorFilter}
+                    onChange={(e) => setPrintContractorFilter(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">همه پیمانکاران</option>
+                    {Array.from(new Set(contractors.map(c => c.name.trim()))).map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-stone-500 mb-1">فیلتر رسته فنی / حوزه:</label>
-                <select
-                  value={printActivityFilter}
-                  onChange={(e) => setPrintActivityFilter(e.target.value)}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="all">همه رسته‌های فعال</option>
-                  {Array.from(new Set(contractors.map(c => c.activity_field.trim()))).map(field => (
-                    <option key={field} value={field}>{field}</option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-stone-500 mb-1">فیلتر رسته فنی / حوزه:</label>
+                  <select
+                    value={printActivityFilter}
+                    onChange={(e) => setPrintActivityFilter(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">همه رسته‌های فعال</option>
+                    {Array.from(new Set(contractors.map(c => c.activity_field.trim()))).map(field => (
+                      <option key={field} value={field}>{field}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="flex items-end">
-                <button
-                  onClick={() => window.print()}
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>چاپ سند / خروجی PDF</span>
-                </button>
+                <div className="flex items-end">
+                  <button
+                    onClick={() => window.print()}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>چاپ سند / خروجی PDF</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1209,21 +1213,31 @@ export default function ContractorDashboard({ onBack, onSelectContractor, onRefr
             <div className="p-8 overflow-y-auto bg-stone-100 flex-1">
               <style dangerouslySetInnerHTML={{__html: `
                 @media print {
-                  #root, #root-container, #primary-navigation-header, .fixed, .no-print, button, select, input, header, footer {
-                    display: none !important;
+                  body {
+                    background: white !important;
+                    color: black !important;
+                    font-size: 10pt !important;
+                    direction: rtl !important;
+                  }
+                  /* Hide all elements on the body during print */
+                  body * {
                     visibility: hidden !important;
+                  }
+                  /* Bring back only the printable area and its offspring */
+                  #printable-area-grouped-contractors,
+                  #printable-area-grouped-contractors * {
+                    visibility: visible !important;
                   }
                   #printable-area-grouped-contractors {
                     display: block !important;
-                    visibility: visible !important;
                     position: absolute !important;
                     left: 0 !important;
                     top: 0 !important;
                     width: 100% !important;
                     background: white !important;
-                    padding: 20px !important;
-                    color: black !important;
-                    font-size: 10pt !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: none !important;
                   }
                   .print-table th {
                     background-color: #f1f5f9 !important;

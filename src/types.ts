@@ -69,6 +69,7 @@ export interface ContractorInvoice {
   retention_bond: number;
   insurance: number;
   net_amount: number;
+  invoice_date?: string;
 }
 
 export interface ContractorPayment {

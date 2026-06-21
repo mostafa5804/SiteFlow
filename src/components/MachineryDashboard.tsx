@@ -26,6 +26,21 @@ import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber
 import { exportMachineryToExcel } from "../utils/excelExport";
 import { SleekLicensePlate } from "./SleekLicensePlate";
 
+const PERSIAN_MONTHS: Record<number, string> = {
+  1: "فروردین",
+  2: "اردیبهشت",
+  3: "خرداد",
+  4: "تیر",
+  5: "مرداد",
+  6: "شهریور",
+  7: "مهر",
+  8: "آبان",
+  9: "آذر",
+  10: "دی",
+  11: "بهمن",
+  12: "اسفند",
+};
+
 interface MachineryDashboardProps {
   onBack: () => void;
   onSelectMachine: (id: number) => void;
@@ -46,6 +61,8 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
   const [sortBy, setSortBy] = useState("id");
   const [activeTab, setActiveTab] = useState<"list" | "consolidated" | "settings">("list");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [selectedMonth, setSelectedMonth] = useState<"all" | number>("all");
+  const [selectedYear, setSelectedYear] = useState<"all" | number>("all");
 
   // Printing state for consolidated reports
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -147,7 +164,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
   const handleAddMachine = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedBaseRent = parseFloat(parseInputNumber(baseRent));
-    if (!ownerName.trim() || !machineType.trim() || !licensePlate.trim() || isNaN(parsedBaseRent) || parsedBaseRent <= 0) {
+    if (!ownerName.trim() || !machineType.trim() || isNaN(parsedBaseRent) || parsedBaseRent <= 0) {
       alert("لطفا تمامی فیلدها را با دقت تکمیل نمایید.");
       return;
     }
@@ -420,18 +437,68 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
             </p>
           </div>
 
-          {/* Search Box */}
-          <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="relative w-full max-w-md mr-auto">
-              <Search className="absolute right-3 top-2.5 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="پویش نام مالک، مدل خودرو یا پلاک..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-4 pr-9 py-1.5 bg-slate-50 border border-stone-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all text-right font-medium"
-              />
+          {/* Filter Bar with Search, Month, and Year selects */}
+          <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute right-3 top-2.5 text-slate-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="پویش نام مالک، مدل خودرو یا پلاک..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-4 pr-9 py-1.5 bg-slate-50 border border-stone-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all text-right font-medium"
+                />
+              </div>
+
+              {/* Month selector */}
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-bold text-stone-500 whitespace-nowrap">دوره گزارش:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedMonth(val === "all" ? "all" : parseInt(val, 10));
+                  }}
+                  className="p-1.5 px-3 border border-stone-200 rounded-xl bg-white text-stone-850 font-bold focus:outline-none focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="all">📊 تجمعی (مجموع سال)</option>
+                  <option value="1">فروردین (۰۱)</option>
+                  <option value="2">اردیبهشت (۰۲)</option>
+                  <option value="3">خرداد (۰۳)</option>
+                  <option value="4">تیر (۰۴)</option>
+                  <option value="5">مرداد (۰۵)</option>
+                  <option value="6">شهریور (۰۶)</option>
+                  <option value="7">مهر (۰۷)</option>
+                  <option value="8">آبان (۰۸)</option>
+                  <option value="9">آذر (۰۹)</option>
+                  <option value="10">دی (۱۰)</option>
+                  <option value="11">بهمن (۱۱)</option>
+                  <option value="12">اسفند (۱۲)</option>
+                </select>
+              </div>
+
+              {/* Year selector */}
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-bold text-stone-500 whitespace-nowrap">سال مالی:</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedYear(val === "all" ? "all" : parseInt(val, 10));
+                  }}
+                  className="p-1.5 px-3 border border-stone-200 rounded-xl bg-white text-stone-850 font-bold focus:outline-none focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="all">📆 تجمعی (همه سال‌ها)</option>
+                  <option value="1406">سال ۱۴۰۶</option>
+                  <option value="1405">سال ۱۴۰۵</option>
+                  <option value="1404">سال ۱۴۰۴</option>
+                  <option value="1403">سال ۱۴۰۳</option>
+                  <option value="1402">سال ۱۴۰۲</option>
+                </select>
+              </div>
             </div>
+            
             <button
               onClick={() => setShowPrintModal(true)}
               className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs shrink-0 hover:scale-[1.02] active:scale-[0.98]"
@@ -443,9 +510,56 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
           <div className="space-y-4">
             {(() => {
-              // Grouping machinery by ownerName
+              // 1. First map and filter machinery by selected month and year
+              const periodFilteredMachinery = machinery.map((m) => {
+                const performances = (m as any).performance || [];
+                const payments = (m as any).payments || [];
+
+                const filteredPerformances = performances.filter((perf: any) => {
+                  if (selectedMonth !== "all" && perf.month_index !== selectedMonth) return false;
+                  if (selectedYear !== "all") {
+                    const pYear = perf.year || 1405;
+                    if (pYear !== selectedYear) return false;
+                  }
+                  return true;
+                });
+
+                const filteredPayments = payments.filter((pay: any) => {
+                  if (selectedMonth !== "all") {
+                    if (!pay.payment_date) return false;
+                    const parts = pay.payment_date.split("/");
+                    if (parts.length < 2 || parseInt(parts[1], 10) !== selectedMonth) return false;
+                  }
+                  if (selectedYear !== "all") {
+                    if (!pay.payment_date) return false;
+                    const parts = pay.payment_date.split("/");
+                    if (parts.length < 1 || parseInt(parts[0], 10) !== selectedYear) return false;
+                  }
+                  return true;
+                });
+
+                const total_performance = filteredPerformances.reduce((sum: number, p: any) => sum + (p.performance_value || 0), 0);
+                const total_calculated = filteredPerformances.reduce((sum: number, p: any) => sum + (p.total_calculated_amount || 0), 0);
+                const total_paid = filteredPayments.reduce((sum: number, pay: any) => sum + (pay.amount || 0), 0);
+                const remaining_balance = total_calculated - total_paid;
+
+                return {
+                  ...m,
+                  total_performance,
+                  total_calculated,
+                  total_paid,
+                  remaining_balance,
+                };
+              }).filter((m) => {
+                if (selectedMonth !== "all" || selectedYear !== "all") {
+                  return m.total_calculated !== 0 || m.total_paid !== 0;
+                }
+                return true;
+              });
+
+              // 2. Grouping machinery by ownerName
               const grouped: Record<string, Machine[]> = {};
-              machinery.forEach((m) => {
+              periodFilteredMachinery.forEach((m) => {
                 const nameKey = (m.owner_name || "").trim();
                 if (!nameKey) return;
                 if (!grouped[nameKey]) {
@@ -454,7 +568,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                 grouped[nameKey].push(m);
               });
 
-              // Apply Search query
+              // 3. Apply Search query
               const filteredGroups = Object.entries(grouped).filter(([name, list]) => {
                 if (!searchQuery.trim()) return true;
                 const query = searchQuery.toLowerCase();
@@ -538,9 +652,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                                 <th className="p-3">نوع و کدهای فنی ماشین</th>
                                 <th className="p-3">پلاک خودرو کالیبره</th>
                                 <th className="p-3">مبنا قرارداد تعرفه</th>
-                                <th className="p-3 text-left">نرخ کرایه پایه</th>
-                                <th className="p-3 text-left">مجموع پیمایش</th>
-                                <th className="p-3 text-left text-slate-800">کل ارزش کارکرد محاسب</th>
+                                <th className="p-3 text-left text-slate-800">مبلغ دوره گزارش (ریال)</th>
                                 <th className="p-3 text-left text-emerald-700">مجموع پرداختی</th>
                                 <th className="p-3 text-left text-orange-700 font-extrabold">صافی مانده طلب</th>
                                 <th className="p-3 text-center">ورق کالیبره</th>
@@ -569,10 +681,6 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                                     }`}>
                                       {m.contract_type === "hourly" ? "ساعتی" : "ماهانه مستقیم / روزی"}
                                     </span>
-                                  </td>
-                                  <td className="p-3 text-left font-mono">{formatCurrency(m.base_rent)}</td>
-                                  <td className="p-3 text-left font-mono text-stone-600 font-bold">
-                                    {convertToPersianDigits(formatNumber(m.total_performance))} {m.contract_type === "hourly" ? "ساعت" : "روز"}
                                   </td>
                                   <td className="p-3 text-left font-mono text-slate-700 font-bold">{formatCurrency(m.total_calculated)}</td>
                                   <td className="p-3 text-left font-mono text-emerald-700 font-semibold">{formatCurrency(m.total_paid)}</td>
@@ -1003,11 +1111,10 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-500 mb-1.5">شماره پلاک شهربانی</label>
+                <label className="block text-xs font-bold text-stone-500 mb-1.5">شماره پلاک شهربانی (اختیاری)</label>
                 <input
                   id="license-plate-input"
                   type="text"
-                  required
                   placeholder="مثال: ۲۲ الف ۴۵۶ ایران ۲۳"
                   value={licensePlate}
                   onChange={(e) => setLicensePlate(e.target.value)}
@@ -1154,75 +1261,125 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
       {/* Printing Modal for Consolidated Report */}
       {showPrintModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in no-print">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-5xl w-full overflow-hidden text-right no-print flex flex-col max-h-[90vh]"
+            className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-5xl w-full overflow-hidden text-right printing-modal-card flex flex-col max-h-[90vh]"
           >
-            {/* Modal Header */}
-            <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-extrabold text-sm">پیش‌نمایش و تنظیمات چاپ گزارش تجمیعی ناوگان ماشین‌آلات</h3>
+            {/* Modal Header - Hidden on Print */}
+            <div className="no-print">
+              <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-indigo-400" />
+                  <h3 className="font-extrabold text-sm">پیش‌نمایش و تنظیمات چاپ گزارش تجمیعی ناوگان ماشین‌آلات</h3>
+                </div>
+                <button 
+                  onClick={() => setShowPrintModal(false)}
+                  className="text-slate-400 hover:text-white transition-all cursor-pointer text-xl"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button 
-                onClick={() => setShowPrintModal(false)}
-                className="text-slate-400 hover:text-white transition-all cursor-pointer text-xl"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Print Settings & Filters */}
-            <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-semibold shrink-0">
-              <div>
-                <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
-                <select
-                  value={printReportType}
-                  onChange={(e) => setPrintReportType(e.target.value as "summary" | "detailed")}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="summary">تجمیعی کلی (خلاصه تراز مالکین)</option>
-                  <option value="detailed">مشروح تفکیکی (سیاهه جزء به جزء ناوگان)</option>
-                </select>
-              </div>
+            {/* Print Settings & Filters - Hidden on Print */}
+            <div className="no-print">
+              <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs font-semibold shrink-0">
+                <div>
+                  <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
+                  <select
+                    value={printReportType}
+                    onChange={(e) => setPrintReportType(e.target.value as "summary" | "detailed")}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="summary">تجمیعی کلی (خلاصه تراز مالکین)</option>
+                    <option value="detailed">مشروح تفکیکی (سیاهه جزء به جزء ناوگان)</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-stone-500 mb-1">فیلتر شخص مالک / پیمانکار:</label>
-                <select
-                  value={printOwnerFilter}
-                  onChange={(e) => setPrintOwnerFilter(e.target.value)}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="all">همه مالکین ناوگان</option>
-                  {Array.from(new Set(machinery.map(m => m.owner_name.trim()))).map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-stone-500 mb-1">دوره گزارش ماهانه:</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedMonth(val === "all" ? "all" : parseInt(val, 10));
+                    }}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">📊 تجمعی (مجموع سال)</option>
+                    <option value="1">فروردین (۰۱)</option>
+                    <option value="2">اردیبهشت (۰۲)</option>
+                    <option value="3">خرداد (۰۳)</option>
+                    <option value="4">تیر (۰۴)</option>
+                    <option value="5">مرداد (۰۵)</option>
+                    <option value="6">شهریور (۰۶)</option>
+                    <option value="7">مهر (۰۷)</option>
+                    <option value="8">آبان (۰۸)</option>
+                    <option value="9">آذر (۰۹)</option>
+                    <option value="10">دی (۱۰)</option>
+                    <option value="11">بهمن (۱۱)</option>
+                    <option value="12">اسفند (۱۲)</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-stone-500 mb-1">فیلتر مبنای اجاره / قرارداد:</label>
-                <select
-                  value={printCategoryFilter}
-                  onChange={(e) => setPrintCategoryFilter(e.target.value)}
-                  className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
-                >
-                  <option value="all">همه مبناها</option>
-                  <option value="hourly">ساعتی (کارکرد کارگاهی)</option>
-                  <option value="daily">روزانه / ماهانه ثابت</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-stone-500 mb-1">سال مالی گزارش:</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedYear(val === "all" ? "all" : parseInt(val, 10));
+                    }}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">📆 تجمعی (همه سال‌ها)</option>
+                    <option value="1406">سال ۱۴۰۶</option>
+                    <option value="1405">سال ۱۴۰۵</option>
+                    <option value="1404">سال ۱۴۰۴</option>
+                    <option value="1403">سال ۱۴۰۳</option>
+                    <option value="1402">سال ۱۴۰۲</option>
+                  </select>
+                </div>
 
-              <div className="flex items-end">
-                <button
-                  onClick={() => window.print()}
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>چاپ سند / خروجی PDF</span>
-                </button>
+                <div>
+                  <label className="block text-stone-500 mb-1">فیلتر شخص مالک / پیمانکار:</label>
+                  <select
+                    value={printOwnerFilter}
+                    onChange={(e) => setPrintOwnerFilter(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">همه مالکین ناوگان</option>
+                    {Array.from(new Set(machinery.map(m => m.owner_name.trim()))).map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-stone-500 mb-1">فیلتر مبنای اجاره / قرارداد:</label>
+                  <select
+                    value={printCategoryFilter}
+                    onChange={(e) => setPrintCategoryFilter(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="all">همه مبناها</option>
+                    <option value="hourly">ساعتی (کارکرد کارگاهی)</option>
+                    <option value="daily">روزانه / ماهانه ثابت</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    id="print-preview-modal-run-btn"
+                    onClick={() => window.print()}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>چاپ سند / خروجی PDF</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1230,21 +1387,31 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
             <div className="p-8 overflow-y-auto bg-stone-100 flex-1">
               <style dangerouslySetInnerHTML={{__html: `
                 @media print {
-                  #root, #root-container, #primary-navigation-header, .fixed, .no-print, button, select, input, header, footer {
-                    display: none !important;
+                  body {
+                    background: white !important;
+                    color: black !important;
+                    font-size: 10pt !important;
+                    direction: rtl !important;
+                  }
+                  /* Hide all elements on the body during print */
+                  body * {
                     visibility: hidden !important;
+                  }
+                  /* Bring back only the printable area and its offspring */
+                  #printable-area-grouped-machinery,
+                  #printable-area-grouped-machinery * {
+                    visibility: visible !important;
                   }
                   #printable-area-grouped-machinery {
                     display: block !important;
-                    visibility: visible !important;
                     position: absolute !important;
                     left: 0 !important;
                     top: 0 !important;
                     width: 100% !important;
                     background: white !important;
-                    padding: 20px !important;
-                    color: black !important;
-                    font-size: 10pt !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: none !important;
                   }
                   .print-table th {
                     background-color: #f1f5f9 !important;
@@ -1266,7 +1433,9 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                     <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
                       گزارش مالی تجمیعی موازنه حساب و تراز مالکین ماشین‌آلات
                     </span>
-                    <span className="text-[10px] text-stone-500 block">پروژه فعال کارگاهی انبارداری و پیمانکاران</span>
+                    <span className="text-[10px] text-stone-500 block">
+                      پروژه فعال کارگاه • دوره گزارش: {selectedMonth === "all" ? "تجمعی (مجموع سال)" : (PERSIAN_MONTHS[selectedMonth] || selectedMonth)} • سال: {selectedYear === "all" ? "همه سال‌ها" : selectedYear}
+                    </span>
                   </div>
                   <div className="text-left font-mono text-[10px] text-stone-500 space-y-0.5">
                     <div>تاریخ خروجی: {formatDateForDisplayToday()}</div>
@@ -1276,8 +1445,55 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
                 {/* Main Print content */}
                 {(() => {
-                  // Filter machinery according to selection
-                  const filtered = machinery.filter(m => {
+                  // 1. Filter machinery by month/year chosen on Dashboard
+                  const periodFiltered = machinery.map((m) => {
+                    const performances = (m as any).performance || [];
+                    const payments = (m as any).payments || [];
+
+                    const filteredPerformances = performances.filter((perf: any) => {
+                      if (selectedMonth !== "all" && perf.month_index !== selectedMonth) return false;
+                      if (selectedYear !== "all") {
+                        const pYear = perf.year || 1405;
+                        if (pYear !== selectedYear) return false;
+                      }
+                      return true;
+                    });
+
+                    const filteredPayments = payments.filter((pay: any) => {
+                      if (selectedMonth !== "all") {
+                        if (!pay.payment_date) return false;
+                        const parts = pay.payment_date.split("/");
+                        if (parts.length < 2 || parseInt(parts[1], 10) !== selectedMonth) return false;
+                      }
+                      if (selectedYear !== "all") {
+                        if (!pay.payment_date) return false;
+                        const parts = pay.payment_date.split("/");
+                        if (parts.length < 1 || parseInt(parts[0], 10) !== selectedYear) return false;
+                      }
+                      return true;
+                    });
+
+                    const total_performance = filteredPerformances.reduce((sum: number, p: any) => sum + (p.performance_value || 0), 0);
+                    const total_calculated = filteredPerformances.reduce((sum: number, p: any) => sum + (p.total_calculated_amount || 0), 0);
+                    const total_paid = filteredPayments.reduce((sum: number, pay: any) => sum + (pay.amount || 0), 0);
+                    const remaining_balance = total_calculated - total_paid;
+
+                    return {
+                      ...m,
+                      total_performance,
+                      total_calculated,
+                      total_paid,
+                      remaining_balance,
+                    };
+                  }).filter((m) => {
+                    if (selectedMonth !== "all" || selectedYear !== "all") {
+                      return m.total_calculated !== 0 || m.total_paid !== 0;
+                    }
+                    return true;
+                  });
+
+                  // 2. Filter machinery according to print options selected in modal
+                  const filtered = periodFiltered.filter(m => {
                     const matchOwner = printOwnerFilter === "all" || m.owner_name.trim() === printOwnerFilter;
                     const matchCat = printCategoryFilter === "all" || m.contract_type === printCategoryFilter;
                     return matchOwner && matchCat;
@@ -1315,14 +1531,14 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                               <th className="border border-stone-300 p-2 text-center w-8">ردیف</th>
                               <th className="border border-stone-300 p-2">نام مالک ناوگان</th>
                               <th className="border border-stone-300 p-2 text-center">تعداد ماشین‌آلات</th>
-                              <th className="border border-stone-300 p-2 text-left">مجموع کارکرد کارگاهی</th>
+                              <th className="border border-stone-300 p-2 text-left">مجموع مبلغ دوره گزارش (ریال)</th>
                               <th className="border border-stone-300 p-2 text-left">مجموع پرداختی‌های مالی</th>
                               <th className="border border-stone-300 p-2 text-left font-black">صافی طلبکاری مالک</th>
                             </tr>
                           </thead>
                           <tbody>
                             {Object.entries(grouped).map(([name, list], index) => {
-                              const gross = list.reduce((sum, m) => sum + (m.total_performance || 0), 0);
+                              const gross = list.reduce((sum, m) => sum + (m.total_calculated || 0), 0);
                               const paid = list.reduce((sum, m) => sum + (m.total_paid || 0), 0);
                               const balance = list.reduce((sum, m) => sum + (m.remaining_balance || 0), 0);
 
@@ -1381,14 +1597,13 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                         </div>
                         <table className="w-full border-collapse border border-stone-300 text-right text-[9px] print-table">
                           <thead>
-                            <tr className="bg-slate-100 text-slate-750 font-bold border-b border-stone-300">
+                            <tr className="bg-slate-100 text-slate-755 font-bold border-b border-stone-300">
                               <th className="border border-stone-300 p-2 text-center w-12">شناسه</th>
                               <th className="border border-stone-300 p-2">نام مالک</th>
                               <th className="border border-stone-300 p-2">نوع دستگاه و مدل</th>
                               <th className="border border-stone-300 p-2">شماره پلاک شهربانی</th>
                               <th className="border border-stone-300 p-2">مبنای قرارداد</th>
-                              <th className="border border-stone-300 p-2 text-left">نرخ مبنا (ریال)</th>
-                              <th className="border border-stone-300 p-2 text-left">مجموع کارکرد کارگاهی</th>
+                              <th className="border border-stone-300 p-2 text-left">مبلغ دوره گزارش (ریال)</th>
                               <th className="border border-stone-300 p-2 text-left">کل مبالغ پرداختی</th>
                               <th className="border border-stone-300 p-2 text-left font-black">مانده تراز طلب</th>
                             </tr>
@@ -1424,8 +1639,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                                   <td className="border border-stone-300 p-2 text-center">
                                     {item.contract_type === "hourly" ? "ساعتی" : item.contract_type === "daily" ? "روزمزد روزانه" : "ماهانه"}
                                   </td>
-                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.base_rent)}</td>
-                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_performance)}</td>
+                                  <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_calculated)}</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(item.total_paid)}</td>
                                   <td className="border border-stone-300 p-2 text-left font-mono font-black">{formatCurrency(item.remaining_balance)}</td>
                                 </tr>
@@ -1434,8 +1648,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                             {/* Detailed Totals */}
                             <tr className="bg-slate-50 font-bold border-t-2 border-stone-400">
                               <td className="border border-stone-300 p-2 text-center" colSpan={5}>جمع کل ناوگان کارگاه</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.base_rent||0), 0))}</td>
-                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_performance||0), 0))}</td>
+                              <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_calculated||0), 0))}</td>
                               <td className="border border-stone-300 p-2 text-left font-mono">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.total_paid || 0), 0))}</td>
                               <td className="border border-stone-300 p-2 text-left font-mono font-black text-emerald-800">{formatCurrency(sortedFiltered.reduce((s,c) => s+(c.remaining_balance||0), 0))}</td>
                             </tr>
