@@ -1,11 +1,12 @@
-name: Build Windows EXE
+name: Release Windows App (Installer & Portable)
 
 on:
   push:
-    branches: [ "main" ] # اگر نام برنچ اصلی شما master است، آن را به master تغییر دهید
+    tags:
+      - 'v*' # این دستور باعث می‌شود فقط با فرستادن تگ‌هایی مثل v1.0.0 یا v1.1 کامپایل شروع شود
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
 
     steps:
@@ -21,16 +22,20 @@ jobs:
     - name: Install Dependencies
       run: npm install
 
-    # اگر از الکترون استفاده می‌کنید این خط را نگه دارید؛ 
-    # اگر اسکریپت بیلد دیگری در package.json دارید، نام آن را جایگزین build کنید
-    - name: Build Windows Application
-      run: npm run build 
+    # اگر از الکترون استفاده می‌کنید، مطمئن شوید که در package.json تنظیمات پرتابل وجود دارد
+    # این دستور پروژه را برای ویندوز کامپایل می‌کند
+    - name: Build and Package for Windows
+      run: npm run build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # برای اینکه بتونه فایل‌ها رو آپلود کنه
 
-    - name: Upload EXE Artifact
-      uses: actions/upload-artifact@v4
+    - name: Create GitHub Release and Upload Assets
+      uses: softprops/action-gh-release@v2
       with:
-        name: SiteFlow-Windows-EXE
-        path: |
+        files: |
           dist/*.exe
+          dist/*.zip
           release/**/*.exe
           out/**/*.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
