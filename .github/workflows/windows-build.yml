@@ -1,9 +1,13 @@
-name: Release Windows App (Installer & Portable)
+name: Release SiteFlow (Installer & Portable)
 
 on:
   push:
     tags:
-      - 'v*' # این دستور باعث می‌شود فقط با فرستادن تگ‌هایی مثل v1.0.0 یا v1.1 کامپایل شروع شود
+      - 'v*'
+
+# دادن دسترسی‌های لازم برای ساخت ریلیز و آپلود فایل‌ها
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -16,26 +20,22 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '24' # آپدیت به نود ۲۴ برای حل اخطار دپریکیت شدن نود ۲۰
         cache: 'npm'
 
     - name: Install Dependencies
       run: npm install
 
-    # اگر از الکترون استفاده می‌کنید، مطمئن شوید که در package.json تنظیمات پرتابل وجود دارد
-    # این دستور پروژه را برای ویندوز کامپایل می‌کند
-    - name: Build and Package for Windows
-      run: npm run build
+    - name: Build Electron App for Windows
+      run: npm run dist:win
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # برای اینکه بتونه فایل‌ها رو آپلود کنه
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Create GitHub Release and Upload Assets
+    # آپلود دقیق فایل‌ها از پوشه dist-desktop که در پکیج جی‌سان تعریف شده
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          dist/*.exe
-          dist/*.zip
-          release/**/*.exe
-          out/**/*.exe
+          dist-desktop/*.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
