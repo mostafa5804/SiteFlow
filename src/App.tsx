@@ -48,6 +48,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { formatCurrency, convertToPersianDigits, getJalaliDateStr } from "./utils/formatters";
+import { generateDirectPDF } from "./utils/pdfGenerator";
 
 export function getNicePersianDate() {
   return getJalaliDateStr();
@@ -141,6 +142,8 @@ export default function App() {
 
   // Consolidated debt report modal trigger
   const [showDebtReportModal, setShowDebtReportModal] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ active: boolean; message: string }>({ active: false, message: "" });
+  const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
   const [debtReportFilterType, setDebtReportFilterType] = useState<"all" | "contractors" | "machinery">("all");
   const [debtReportMachineryCategory, setDebtReportMachineryCategory] = useState<"all" | "سنگین" | "سبک">("all");
   const [debtReportMonth, setDebtReportMonth] = useState<"all" | number>("all");
@@ -1156,14 +1159,14 @@ export default function App() {
               onClick={() => {
                 setSection("reports");
               }}
-              className="bg-indigo-50/15 hover:bg-indigo-50/25 border border-indigo-250/60 hover:border-indigo-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
+              className="bg-indigo-50/15 hover:bg-indigo-50/25 border border-indigo-200/60 hover:border-indigo-500 rounded-2xl p-5 shadow-xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between group h-[200px] text-right"
             >
               <div className="space-y-3">
-                <div className="p-3 bg-white text-indigo-650 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-indigo-105">
+                <div className="p-3 bg-white text-indigo-600 rounded-xl w-fit shadow-xs group-hover:scale-105 transition-transform border border-indigo-100">
                   <BarChart3 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-indigo-950 group-hover:text-indigo-805 transition-colors flex items-center gap-1">
+                  <h3 className="text-sm font-black text-indigo-950 group-hover:text-indigo-800 transition-colors flex items-center gap-1">
                     <span className="text-indigo-500 font-serif">۴.</span>
                     <span>نمودارها و گزارشات تفکیکی</span>
                   </h3>
@@ -1177,7 +1180,7 @@ export default function App() {
                 <span className="text-[10px] text-indigo-800/85 font-mono">
                   نمودارهای بهای تمام‌شده
                 </span>
-                <span className="text-indigo-650 font-bold text-[11px] flex items-center gap-1 group-hover:translate-x-[-3px] transition-transform">
+                <span className="text-indigo-600 font-bold text-[11px] flex items-center gap-1 group-hover:translate-x-[-3px] transition-transform">
                   آنالیز پویای کارگاه &larr;
                 </span>
               </div>
@@ -1325,26 +1328,62 @@ export default function App() {
               {/* Printable style wrapper */}
               <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 15mm 15mm 15mm 15mm !important;
+                  }
                   body {
                     background: white !important;
                     color: black !important;
                     font-size: 10pt !important;
                     direction: rtl !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                   }
-                  /* Hide all elements on the body during print */
-                  body * {
-                    visibility: hidden !important;
+                  /* Collapse parent layout padding/margins/heights completely */
+                  html, body, #root, #unified-app-root, main {
+                    display: block !important;
+                    background: white !important;
+                    color: black !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    overflow: visible !important;
+                    box-shadow: none !important;
+                    border: none !important;
                   }
-                  /* Bring back only the printable area and its offspring */
-                  #printable-area-debts,
-                  #printable-area-debts * {
-                    visibility: visible !important;
+                  /* Fully strip centering from fixed backdrops & modals */
+                  div.fixed.inset-0, 
+                  div.fixed.inset-0 > div,
+                  .printing-modal-card {
+                    display: block !important;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    min-height: 0 !important;
+                    transform: none !important;
+                    box-shadow: none !important;
+                    background: white !important;
+                    border: none !important;
+                    border-radius: 0 !important;
+                  }
+                  /* Hide all headers, footers and no-print elements */
+                  header, footer, #primary-navigation-header, .no-print, button, select, input {
+                    display: none !important;
+                  }
+                  /* Hide all sibling elements of the main layout to avoid blank pages and spacing */
+                  body:has(#printable-area-debts) main > *:not(:has(#printable-area-debts)) {
+                    display: none !important;
                   }
                   #printable-area-debts {
                     display: block !important;
-                    position: absolute !important;
-                    left: 0 !important;
-                    top: 0 !important;
+                    position: relative !important;
                     width: 100% !important;
                     background: white !important;
                     padding: 0 !important;
@@ -1443,23 +1482,58 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex items-center gap-1.5 text-xs text-stone-600 font-bold">
+                        <span>جهت صفحه PDF:</span>
+                        <select
+                          value={pdfOrientation}
+                          onChange={(e) => setPdfOrientation(e.target.value as any)}
+                          className="p-1 px-2 border rounded bg-white text-stone-850 font-bold cursor-pointer font-sans text-xs focus:outline-none"
+                        >
+                          <option value="portrait">عمودی (Portrait)</option>
+                          <option value="landscape">افقی (Landscape)</option>
+                        </select>
+                      </div>
+
                       <button
                         id="print-debts-list-btn"
                         onClick={() => window.print()}
                         className="bg-slate-900 hover:bg-slate-850 text-white px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                        disabled={pdfProgress.active}
                       >
-                        <Printer className="w-4 h-4 text-yellow-400" />
-                        <span>چاپ گزارش بدهی (PDF)</span>
+                        <Printer className="w-4 h-4 text-amber-400" />
+                        <span>چاپ با پرینتر مرورگر</span>
                       </button>
+
+                      <button
+                        onClick={() => generateDirectPDF("printable-area-debts", "گزارش_بدهی_معوق_کارگاه", (active, message) => setPdfProgress({ active, message }), { orientation: pdfOrientation })}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                        disabled={pdfProgress.active}
+                      >
+                        {pdfProgress.active ? (
+                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        ) : (
+                          <FileText className="w-4 h-4 text-emerald-300" />
+                        )}
+                        <span>خروجی PDF مستقیم</span>
+                      </button>
+
                       <button
                         onClick={() => setShowDebtReportModal(false)}
-                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        disabled={pdfProgress.active}
                       >
                         بستن گزارش
                       </button>
                     </div>
                   </div>
+
+                  {pdfProgress.active && (
+                    <div className="bg-amber-50 text-amber-800 border-r-4 border-amber-500 p-3 rounded-r-xl text-[11px] font-sans font-bold flex items-center gap-2 mb-4 animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                      <span>{pdfProgress.message}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Printable Document Sheet */}
@@ -1470,14 +1544,24 @@ export default function App() {
                 >
                   {/* Report Header Logo */}
                   <div className="flex items-center justify-between border-b pb-4">
-                    <div className="flex flex-col space-y-1">
-                      <span className="font-black text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5 font-bold flex items-center gap-2">
-                        {settings.logo_img && (
-                          <img src={settings.logo_img} className="w-7 h-7 object-contain rounded p-0.5 border" alt="Logo" referrerPolicy="no-referrer" />
-                        )}
-                        <span>{settings.enterprise_name || "دفتر فنی"}</span>
-                      </span>
-                      <span className="text-[10px] text-stone-500 pr-2.5">تیم هماهنگی امور زنده فنی و کارگاه • مدیریت معوقات</span>
+                    <div className="flex items-center gap-3">
+                      {settings.logo_img ? (
+                        <img src={settings.logo_img} className="w-10 h-10 object-contain rounded bg-white p-0.5 border" alt="Logo" referrerPolicy="no-referrer" />
+                      ) : settings.logo_text ? (
+                        <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                          {settings.logo_text}
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                          فنی
+                        </div>
+                      )}
+                      <div className="flex flex-col space-y-1">
+                        <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5 font-bold">
+                          {settings.enterprise_name || "دفتر کارگاه فنی الوان"}
+                        </span>
+                        <span className="text-[10px] text-stone-500 pr-2.5 font-bold">پروژه: {settings.project_name || "سامانه انبارداری و پیمانکاران"}</span>
+                      </div>
                     </div>
 
                     <div className="text-center space-y-1">
@@ -1692,25 +1776,6 @@ export default function App() {
                             )}
                           </div>
                         )}
-
-                        {/* Verified Full Financial Debt Consolidation Summary */}
-                        <div className="border hover:border-stone-350 p-5 rounded-2xl bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
-                          <div>
-                            <h4 className="font-extrabold text-sm text-yellow-500">جمع کل تعهدات معوقه کارفرمایی پروژه کالا (بدهی خالص نهایی):</h4>
-                            <p className="text-[10px] text-stone-300 mt-1 leading-relaxed">
-                              این رقم موازنه نهایی بدهی باقیمانده برای کلیه ردیف‌های فعال و تسویه‌نشده {settings.project_name || "نرم افزار کارگاهی"} طبق معیارهای استخراج فیلتر شده را تبیین می‌نماید.
-                            </p>
-                          </div>
-                          <div className="text-left font-mono shrink-0">
-                            <span className="text-[10px] text-yellow-500 block mb-0.5">کل بدهی باقیمانده (ریال):</span>
-                            <strong className="text-xl sm:text-2xl font-black text-white">
-                              {formatCurrency(
-                                (showContractors ? r_contractors.reduce((s, x) => s + (x.remaining_balance || 0), 0) : 0) +
-                                (showMachinery ? r_machines.reduce((s, x) => s + (x.remaining_balance || 0), 0) : 0)
-                              )}
-                            </strong>
-                          </div>
-                        </div>
                       </>
                     );
                   })()}
@@ -1808,6 +1873,7 @@ export default function App() {
           {currentScreen === "print" && activeDocDetail && (
             <DocumentPrint
               document={activeDocDetail}
+              settings={settings}
               onBack={() => setCurrentScreen("history")}
             />
           )}
@@ -1832,6 +1898,7 @@ export default function App() {
             />
           ) : (
             <ContractorDashboard 
+              settings={settings}
               onBack={() => setSection("landing")}
               onSelectContractor={(id) => setActiveContractorId(id)}
               onRefreshNotifications={fetchNotifications}
@@ -1851,6 +1918,7 @@ export default function App() {
             />
           ) : (
             <MachineryDashboard 
+              settings={settings}
               onBack={() => setSection("landing")}
               onSelectMachine={(id) => setActiveMachineId(id)}
               onRefreshNotifications={fetchNotifications}

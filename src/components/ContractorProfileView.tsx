@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { ContractorProfile } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber } from "../utils/formatters";
+import { generateDirectPDF } from "../utils/pdfGenerator";
 
 interface ContractorProfileViewProps {
   contractorId: number;
@@ -40,6 +41,8 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ active: boolean; message: string }>({ active: false, message: "" });
+  const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
   
   // Custom Edit Modals
   const [showContractorEditModal, setShowContractorEditModal] = useState(false);
@@ -832,7 +835,7 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
                         <th className="py-3 px-4 text-center">مجموع ناخالص کارکرد</th>
                         <th className="py-3 px-4 text-center text-rose-500">حسن‌انجام‌کار (کسور)</th>
                         <th className="py-3 px-4 text-center text-rose-500">حق بیمه کارکرد</th>
-                        <th className="py-3 px-4 text-center text-indigo-650 font-bold">خالص قابل پرداخت</th>
+                        <th className="py-3 px-4 text-center text-indigo-600 font-bold">خالص قابل پرداخت</th>
                         <th className="py-3 px-4 text-center">عملیات</th>
                       </tr>
                     </thead>
@@ -1473,26 +1476,62 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
           {/* Dynamic print-override styles */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
+              @page {
+                size: A4 portrait;
+                margin: 15mm 15mm 15mm 15mm !important;
+              }
               body {
                 background: white !important;
                 color: black !important;
                 font-size: 11pt !important;
                 direction: rtl !important;
+                margin: 0 !important;
+                padding: 0 !important;
               }
-              /* Hide all elements on the body during print */
-              body * {
-                visibility: hidden !important;
+              /* Collapse parent layout padding/margins/heights completely */
+              html, body, #root, #unified-app-root, main {
+                display: block !important;
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                border: none !important;
               }
-              /* Bring back only the printable area and its offspring */
-              #printable-area-contractor,
-              #printable-area-contractor * {
-                visibility: visible !important;
+              /* Fully strip centering from fixed backdrops & modals */
+              div.fixed.inset-0, 
+              div.fixed.inset-0 > div,
+              .printing-modal-card {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: 0 !important;
+                transform: none !important;
+                box-shadow: none !important;
+                background: white !important;
+                border: none !important;
+                border-radius: 0 !important;
+              }
+              /* Hide all headers, footers and no-print elements */
+              header, footer, #primary-navigation-header, .no-print, button, select, input {
+                display: none !important;
+              }
+              /* Hide all sibling elements of the main layout to avoid blank pages and spacing */
+              body:has(#printable-area-contractor) main > *:not(:has(#printable-area-contractor)) {
+                display: none !important;
               }
               #printable-area-contractor {
                 display: block !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
+                position: relative !important;
                 width: 100% !important;
                 background: white !important;
                 padding: 0 !important;
@@ -1515,26 +1554,22 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
           >
             {/* Modal actions panel - hidden on print */}
             <div className="no-print">
-              <div className="flex items-center justify-between border-b pb-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 mb-6 gap-3">
                 <div className="flex items-center gap-2">
                   <Printer className="w-5 h-5 text-con-main" />
                   <h3 className="font-extrabold text-base">پیش‌نمایش سند چاپی صورت وضعیت پیمانکار</h3>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    id="trigger-print-btn"
-                    onClick={() => window.print()}
-                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-stone-500">جهت صفحه PDF:</span>
+                  <select
+                    value={pdfOrientation}
+                    onChange={(e) => setPdfOrientation(e.target.value as any)}
+                    className="bg-stone-50 border border-stone-200 rounded-xl text-xs px-2 sm:px-3 py-1.5 text-slate-800 font-bold cursor-pointer font-sans"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>اجرای پرینت (یا ذخیره PDF)</span>
-                  </button>
-                  <button
-                    onClick={() => setShowPrintModal(false)}
-                    className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    بستن پیش‌نمایش
-                  </button>
+                    <option value="portrait">عمودی (Portrait)</option>
+                    <option value="landscape">افقی (Landscape)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1547,26 +1582,39 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
             >
               {/* Header Letterhead */}
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
-                {/* Right col: Office brand */}
-                <div className="flex flex-col space-y-1">
-                  <span className="font-black text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
-                    {settings.enterprise_name || "دفتر فنی"}
-                  </span>
-                  <span className="text-[10px] text-stone-500 pr-2.5">سامانه موازنه تراز حساب پیمانکاران عمرانی</span>
+                {/* Right col: Office brand & Logo */}
+                <div className="flex items-center gap-3 pr-2.5">
+                  {settings.logo_img ? (
+                    <img src={settings.logo_img} className="w-10 h-10 object-contain rounded bg-white p-0.5 border" alt="لوگو" referrerPolicy="no-referrer" />
+                  ) : settings.logo_text ? (
+                    <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                      {settings.logo_text}
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                      فنی
+                    </div>
+                  )}
+                  <div className="flex flex-col space-y-1">
+                    <span className="font-black text-sm text-slate-900">
+                      {settings.enterprise_name || "دفتر کارگاه فنی الوان"}
+                    </span>
+                    <span className="text-[10px] text-stone-500 pr-0.5 font-semibold">پروژه: {settings.project_name || "سامانه کارگاهی کارکرد و موازنه"}</span>
+                  </div>
                 </div>
 
                 {/* Center col: Document title */}
-                <div className="flex flex-col items-center space-y-2 text-center">
+                <div className="flex flex-col items-center space-y-1 text-center font-sans">
                   <span className="font-black text-base tracking-tight text-slate-950 font-bold">خلاصه تراز صورت وضعیت و مالیات پیمانکاران</span>
-                  <span className="text-[10px] bg-neutral-100 px-3 py-1 rounded-full font-bold">
-                    {settings.project_name || "نرم افزار کارگاهی"}
+                  <span className="text-[9px] bg-neutral-100 px-3 py-0.5 rounded-full font-bold">
+                    سند رسمی تراز مالی حساب معوق
                   </span>
                 </div>
 
                 {/* Left col: Dates */}
                 <div className="text-[9pt] flex flex-col space-y-1 text-left font-mono">
-                  <span>تاریخ: {convertToPersianDigits(new Date().toLocaleDateString("fa-IR"))}</span>
-                  <span>کد پیمانکار: C-{profile.id}</span>
+                  <span>تاریخ استخراج: {convertToPersianDigits(new Date().toLocaleDateString("fa-IR"))}</span>
+                  <span>کد شناسایی پیمانکار: C-{profile.id}</span>
                 </div>
               </div>
 
@@ -1683,6 +1731,45 @@ export default function ContractorProfileView({ contractorId, onBack, onRefreshN
               {/* Footer technical indicators */}
               <div className="text-[8px] text-center text-stone-400 pt-2 border-t border-dashed">
                 تنظیم شده به شیوه صورت وضعیت‌های قطعی تجمعی کارگاه الوان • تایید سند پس از امضای طرفین ارزش مالی خواهد داشت.
+              </div>
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="p-4 bg-slate-900 border-t border-stone-800 flex flex-col gap-3 shrink-0 no-print rounded-b-2xl -mx-6 -mb-6 md:-mx-8 md:-mb-8 mt-6">
+              {pdfProgress.active && (
+                <div className="bg-amber-500/15 text-amber-300 border-r-4 border-amber-500 p-2.5 rounded text-[11px] font-bold flex items-center gap-2 animate-pulse text-right">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+                  <span>{pdfProgress.message}</span>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 flex-wrap">
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="bg-stone-850 hover:bg-stone-800 text-slate-300 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-700"
+                  disabled={pdfProgress.active}
+                >
+                  بستن پیش‌نمایش
+                </button>
+                <button
+                  onClick={() => generateDirectPDF("printable-area-contractor", `ترازنامه_پیمانکار_${profile?.name}`, (active, message) => setPdfProgress({ active, message }), { orientation: pdfOrientation })}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
+                  disabled={pdfProgress.active}
+                >
+                  {pdfProgress.active ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <FileText className="w-4 h-4 text-emerald-100" />
+                  )}
+                  <span>دانلود مستقیم PDF</span>
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
+                  disabled={pdfProgress.active}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>چاپ با پرینتر مرورگر</span>
+                </button>
               </div>
             </div>
           </motion.div>

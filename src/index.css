@@ -42,6 +42,11 @@ input[type=number] {
 
 /* Print Styles */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm !important;
+  }
+
   body {
     background-color: #ffffff !important;
     font-size: 11pt;
@@ -73,14 +78,44 @@ input[type=number] {
     display: none !important;
   }
 
-  /* Expand modal overlays to be standard full block flow rather than fixed boxes during print processes */
-  body:has(.printing-modal-card) div.fixed.inset-0 {
-    position: relative !important;
-    background: none !important;
-    padding: 0 !important;
-    z-index: auto !important;
+  /* Completely collapse dashboard layout wrapper heights to prevent rendering hidden blank volumes and causing double-prints */
+  body:has(.printing-modal-card) #root > div > main,
+  body:has(.printing-modal-card) #root > div > main > div {
     display: block !important;
+    position: relative !important;
     overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide all dashboard content components (statistics, charts, tables) that reside outside the active printing modal flow */
+  body:has(.printing-modal-card) #root > div > main > div > *:not(:has(.printing-modal-card)),
+  body:has(.printing-modal-card) #root > div > main > div > div > *:not(:has(.printing-modal-card)) {
+    display: none !important;
+  }
+
+  /* Expand modal overlays and strip centering/transform constraints from all wrappers */
+  body:has(.printing-modal-card) div.fixed,
+  body:has(.printing-modal-card) div.fixed.inset-0,
+  body:has(.printing-modal-card) div.fixed > div {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    background: none !important;
+    z-index: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   .printing-modal-card {
@@ -93,6 +128,8 @@ input[type=number] {
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    background-color: #ffffff !important;
+    border-radius: 0 !important;
   }
 }
 

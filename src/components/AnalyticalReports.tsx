@@ -14,6 +14,25 @@ import {
 } from "lucide-react";
 import { formatCurrency, convertToPersianDigits } from "../utils/formatters";
 
+function formatBrief(num: number): string {
+  if (!num) return "۰";
+  const abs = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
+  let formatted = "";
+  if (abs >= 1_000_000_000_000) {
+    formatted = (abs / 1_000_000_000_000).toFixed(1) + " ه.م"; // هزار میلیارد ریال
+  } else if (abs >= 1_000_000_000) {
+    formatted = (abs / 1_000_000_000).toFixed(1) + " م.د"; // میلیارد ریال
+  } else if (abs >= 1_000_000) {
+    formatted = (abs / 1_000_000).toFixed(1) + " م"; // میلیون ریال
+  } else if (abs >= 1_000) {
+    formatted = (abs / 1_000).toFixed(0) + " ه"; // هزار ریال
+  } else {
+    formatted = abs.toString();
+  }
+  return convertToPersianDigits(sign + formatted);
+}
+
 interface MonthlyReportData {
   index: number;
   name: string;
@@ -99,8 +118,8 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
             </button>
           )}
           <div>
-            <h2 className="text-lg font-black text-stone-805 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-indigo-650" />
+            <h2 className="text-lg font-black text-stone-800 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
               داشبورد آنالیز پیشرفته و ترازهای کل کارگاه
             </h2>
             <p className="text-xs text-stone-400 mt-1">
@@ -284,32 +303,49 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
                       )}
 
                       {/* Stacked columns */}
-                      <div className="w-full flex items-end justify-center gap-1 sm:gap-2 h-full relative">
+                      <div className="w-full flex items-end justify-center gap-1 sm:gap-2 h-full relative group">
                         {/* Cost Bar */}
                         <div 
-                          className="w-3 sm:w-5 bg-indigo-650 rounded-t shadow-xs transition-all duration-300 group-hover:bg-indigo-700 relative"
+                          className="w-3 sm:w-5 bg-indigo-600 rounded-t shadow-xs transition-all duration-300 group-hover:bg-indigo-700 relative"
                           style={{ height: `${Math.max(combinedHeight, 2)}%` }}
-                        ></div>
+                        >
+                          <span className="absolute bottom-[102%] left-1/2 -translate-x-1/2 text-[8px] font-mono font-bold text-indigo-900 leading-none whitespace-nowrap bg-white/95 border border-indigo-100 px-0.5 rounded shadow-2xs pointer-events-none">
+                            {formatBrief(m.combined_cost)}
+                          </span>
+                        </div>
                         {/* Payment Bar */}
                         <div 
                           className="w-3 sm:w-5 bg-emerald-500 rounded-t shadow-xs transition-all duration-300 group-hover:bg-emerald-600 relative"
                           style={{ height: `${Math.max(paymentHeight, 2)}%` }}
-                        ></div>
+                        >
+                          <span className="absolute bottom-[102%] left-1/2 -translate-x-1/2 text-[8px] font-mono font-bold text-emerald-800 leading-none whitespace-nowrap bg-white/95 border border-emerald-100 px-0.5 rounded shadow-2xs pointer-events-none">
+                            {formatBrief(m.combined_payments)}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Month label */}
-                      <span className="text-[10px] font-bold text-stone-500 font-sans mt-3 transform group-hover:text-indigo-600 transition-colors whitespace-nowrap">
-                        {m.name}
-                      </span>
+                      {/* Month label and permanent balance state info */}
+                      <div className="text-[10px] font-bold text-stone-500 font-sans mt-3 transform group-hover:text-indigo-600 transition-colors whitespace-nowrap flex flex-col items-center gap-0.5">
+                        <span className="text-stone-700 font-bold">{m.name}</span>
+                        <span className={`text-[8.5px] font-mono font-black scale-95 leading-none px-1 py-0.5 rounded-sm border ${
+                          (m.combined_cost - m.combined_payments) > 0 
+                            ? "bg-amber-50 text-amber-700 border-amber-200/55" 
+                            : (m.combined_cost - m.combined_payments) === 0 
+                              ? "bg-slate-50 text-slate-500 border-stone-200/40" 
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200/55"
+                        }`}>
+                          تراز: {formatBrief(m.combined_cost - m.combined_payments)}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Legends */}
+               {/* Legends */}
               <div className="flex items-center gap-6 justify-center mt-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 bg-indigo-650 rounded"></span>
+                  <span className="w-3 h-3 bg-indigo-600 rounded"></span>
                   <span className="text-[10px] font-bold text-stone-600">میزان کل کارکرد انجام شده (ماشین‌آلات + پیمانکاران)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -372,7 +408,7 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
                         ></div>
                         {/* Payments Bar */}
                         <div 
-                          className="w-2/5 bg-emerald-550 rounded-t shadow-xs transition-all duration-300 group-hover:bg-emerald-650"
+                          className="w-2/5 bg-emerald-500 rounded-t shadow-xs transition-all duration-300 group-hover:bg-emerald-600"
                           style={{ height: `${Math.max(payHeight, 2)}%` }}
                         ></div>
                       </div>
@@ -393,8 +429,8 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
                   <span className="text-[10px] font-bold text-stone-600">صورت وضعیت‌های تایید شده پیمانکاران</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 bg-emerald-550 rounded"></span>
-                  <span className="text-[10px] font-bold text-stone-600">اریزی‌های مالی به حساب پیمانکاران</span>
+                  <span className="w-3 h-3 bg-emerald-50 rounded bg-emerald-500"></span>
+                  <span className="text-[10px] font-bold text-stone-600">واریزی‌های مالی به حساب پیمانکاران</span>
                 </div>
               </div>
             </div>
@@ -446,7 +482,7 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-white/70">کارکرد ماشین‌آلات سبک:</span>
-                            <span className="font-mono font-bold text-cyan-455">{formatCurrency(valLight)}</span>
+                            <span className="font-mono font-bold text-cyan-400">{formatCurrency(valLight)}</span>
                           </div>
                           <div className="border-t border-white/10 mt-1 pt-1 flex justify-between font-bold text-white">
                             <span>جمع کل کارکرد ماه:</span>
@@ -461,7 +497,7 @@ export default function AnalyticalReports({ onBack }: AnalyticalReportsProps) {
                           <>
                             {/* Light Machinery block (Top Stack component) */}
                             <div 
-                              className="w-full bg-cyan-500 hover:bg-cyan-650 transition-colors"
+                              className="w-full bg-cyan-500 hover:bg-cyan-600 transition-colors"
                               style={{ height: `${Math.max(lightHeight, 2)}%` }}
                             ></div>
                             {/* Heavy Machinery block (Bottom Stack core) */}

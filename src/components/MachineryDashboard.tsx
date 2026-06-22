@@ -19,11 +19,13 @@ import {
   Printer,
   X,
   Archive,
-  ArchiveRestore
+  ArchiveRestore,
+  FileText
 } from "lucide-react";
 import { Machine } from "../types";
 import { formatCurrency, formatNumber, convertToPersianDigits, formatInputNumber, parseInputNumber, getJalaliDateStr } from "../utils/formatters";
 import { exportMachineryToExcel } from "../utils/excelExport";
+import { generateDirectPDF } from "../utils/pdfGenerator";
 import { SleekLicensePlate } from "./SleekLicensePlate";
 
 const PERSIAN_MONTHS: Record<number, string> = {
@@ -42,12 +44,13 @@ const PERSIAN_MONTHS: Record<number, string> = {
 };
 
 interface MachineryDashboardProps {
+  settings?: Record<string, string>;
   onBack: () => void;
   onSelectMachine: (id: number) => void;
   onRefreshNotifications?: () => void;
 }
 
-export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshNotifications }: MachineryDashboardProps) {
+export default function MachineryDashboard({ settings = {}, onBack, onSelectMachine, onRefreshNotifications }: MachineryDashboardProps) {
   const [machinery, setMachinery] = useState<Machine[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,6 +69,8 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
   // Printing state for consolidated reports
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ active: boolean; message: string }>({ active: false, message: "" });
+  const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
   const [printReportType, setPrintReportType] = useState<"summary" | "detailed">("summary");
   const [printOwnerFilter, setPrintOwnerFilter] = useState("all");
   const [printCategoryFilter, setPrintCategoryFilter] = useState("all");
@@ -1285,7 +1290,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
 
             {/* Print Settings & Filters - Hidden on Print */}
             <div className="no-print">
-              <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs font-semibold shrink-0">
+              <div className="p-4 bg-slate-50 border-b border-stone-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs font-semibold shrink-0 font-sans">
                 <div>
                   <label className="block text-stone-500 mb-1">نوع ساختار گزارش:</label>
                   <select
@@ -1348,7 +1353,7 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                   <select
                     value={printOwnerFilter}
                     onChange={(e) => setPrintOwnerFilter(e.target.value)}
-                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                    className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer"
                   >
                     <option value="all">همه مالکین ناوگان</option>
                     {Array.from(new Set(machinery.map(m => m.owner_name.trim()))).map(name => (
@@ -1370,15 +1375,16 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
                   </select>
                 </div>
 
-                <div className="flex items-end">
-                  <button
-                    id="print-preview-modal-run-btn"
-                    onClick={() => window.print()}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                <div>
+                  <label className="block text-stone-500 mb-1">جهت صفحه PDF:</label>
+                  <select
+                    value={pdfOrientation}
+                    onChange={(e) => setPdfOrientation(e.target.value as any)}
+                    className="w-full bg-white border border-stone-200 rounded-lg p-2 text-[11px] text-slate-800 focus:ring-1 focus:ring-slate-900 cursor-pointer font-sans"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>چاپ سند / خروجی PDF</span>
-                  </button>
+                    <option value="portrait">عمودی (Portrait)</option>
+                    <option value="landscape">افقی (Landscape)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1387,26 +1393,62 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
             <div className="p-8 overflow-y-auto bg-stone-100 flex-1">
               <style dangerouslySetInnerHTML={{__html: `
                 @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 15mm 15mm 15mm 15mm !important;
+                  }
                   body {
                     background: white !important;
                     color: black !important;
                     font-size: 10pt !important;
                     direction: rtl !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                   }
-                  /* Hide all elements on the body during print */
-                  body * {
-                    visibility: hidden !important;
+                  /* Collapse parent layout padding/margins/heights completely */
+                  html, body, #root, #unified-app-root, main {
+                    display: block !important;
+                    background: white !important;
+                    color: black !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    overflow: visible !important;
+                    box-shadow: none !important;
+                    border: none !important;
                   }
-                  /* Bring back only the printable area and its offspring */
-                  #printable-area-grouped-machinery,
-                  #printable-area-grouped-machinery * {
-                    visibility: visible !important;
+                  /* Fully strip centering from fixed backdrops & modals */
+                  div.fixed.inset-0, 
+                  div.fixed.inset-0 > div,
+                  .printing-modal-card {
+                    display: block !important;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    min-height: 0 !important;
+                    transform: none !important;
+                    box-shadow: none !important;
+                    background: white !important;
+                    border: none !important;
+                    border-radius: 0 !important;
+                  }
+                  /* Hide all headers, footers and no-print elements */
+                  header, footer, #primary-navigation-header, .no-print, button, select, input {
+                    display: none !important;
+                  }
+                  /* Hide all sibling elements of the main layout to avoid blank pages and spacing */
+                  body:has(#printable-area-grouped-machinery) main > *:not(:has(#printable-area-grouped-machinery)) {
+                    display: none !important;
                   }
                   #printable-area-grouped-machinery {
                     display: block !important;
-                    position: absolute !important;
-                    left: 0 !important;
-                    top: 0 !important;
+                    position: relative !important;
                     width: 100% !important;
                     background: white !important;
                     padding: 0 !important;
@@ -1429,15 +1471,34 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
               >
                 {/* Letterhead */}
                 <div className="flex justify-between items-center border-b pb-4">
-                  <div className="flex flex-col space-y-1">
-                    <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
-                      گزارش مالی تجمیعی موازنه حساب و تراز مالکین ماشین‌آلات
-                    </span>
-                    <span className="text-[10px] text-stone-500 block">
-                      پروژه فعال کارگاه • دوره گزارش: {selectedMonth === "all" ? "تجمعی (مجموع سال)" : (PERSIAN_MONTHS[selectedMonth] || selectedMonth)} • سال: {selectedYear === "all" ? "همه سال‌ها" : selectedYear}
+                  <div className="flex items-center gap-3">
+                    {settings.logo_img ? (
+                      <img src={settings.logo_img} className="w-10 h-10 object-contain rounded bg-white p-0.5 border" alt="لوگو" referrerPolicy="no-referrer" />
+                    ) : settings.logo_text ? (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        {settings.logo_text}
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        فنی
+                      </div>
+                    )}
+                    <div className="flex flex-col space-y-1">
+                      <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
+                        {settings.enterprise_name || "دفتر کارگاه فنی الوان"}
+                      </span>
+                      <span className="text-[10px] text-stone-500 pr-2.5 font-bold">پروژه: {settings.project_name || "سامانه انبارداری و ماشین‌آلات"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center space-y-0.5">
+                    <strong className="text-sm font-black text-slate-950">گزارش مالی تجمیعی موازنه حساب و کارکرد مالکین ماشین‌آلات</strong>
+                    <span className="text-[9px] bg-neutral-100 px-3 py-0.5 rounded-full font-bold">
+                      روکش جامع کارکرد ناوگان و موازنه معوقات کارگاهی
                     </span>
                   </div>
-                  <div className="text-left font-mono text-[10px] text-stone-500 space-y-0.5">
+
+                  <div className="text-left font-mono text-[9px] text-stone-500 space-y-0.5">
                     <div>تاریخ خروجی: {formatDateForDisplayToday()}</div>
                     <div>وضعیت گزارش: تجمیع تراز مالکین ناوگان</div>
                   </div>
@@ -1669,20 +1730,42 @@ export default function MachineryDashboard({ onBack, onSelectMachine, onRefreshN
             </div>
 
             {/* Modal Footer Controls */}
-            <div className="p-4 bg-slate-900 border-t border-stone-850 flex justify-end gap-3 shrink-0 no-print">
-              <button
-                onClick={() => setShowPrintModal(false)}
-                className="bg-stone-800 hover:bg-stone-750 text-slate-300 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-700"
-              >
-                بستن پنجره گزارش
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Printer className="w-4 h-4" />
-                <span>شروع فرآیند چاپ</span>
-              </button>
+            <div className="p-4 bg-slate-900 border-t border-stone-850 flex flex-col gap-3 shrink-0 no-print">
+              {pdfProgress.active && (
+                <div className="bg-amber-500/15 text-amber-300 border-r-4 border-amber-500 p-2.5 rounded text-[11px] font-bold flex items-center gap-2 animate-pulse text-right">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+                  <span>{pdfProgress.message}</span>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 flex-wrap">
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="bg-stone-800 hover:bg-stone-750 text-slate-300 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-700"
+                  disabled={pdfProgress.active}
+                >
+                  بستن پنجره گزارش
+                </button>
+                <button
+                  onClick={() => generateDirectPDF("printable-area-grouped-machinery", "گزارش_تجمعی_ناوگان_ماشین_آلات", (active, message) => setPdfProgress({ active, message }), { orientation: pdfOrientation })}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
+                  disabled={pdfProgress.active}
+                >
+                  {pdfProgress.active ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>دانلود مستقیم PDF</span>
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
+                  disabled={pdfProgress.active}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>چاپ با پرینتر مرورگر</span>
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

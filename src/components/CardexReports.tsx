@@ -18,9 +18,11 @@ import {
   ChevronLeft,
   XCircle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  FileText
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { generateDirectPDF } from "../utils/pdfGenerator";
 
 interface CardexReportsProps {
   products: Product[];
@@ -47,6 +49,8 @@ export default function CardexReports({
 }: CardexReportsProps) {
   // Navigation states
   const [activeTab, setActiveTab] = useState<"product" | "person">("product");
+  const [pdfProgress, setPdfProgress] = useState<{ active: boolean; message: string }>({ active: false, message: "" });
+  const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
 
   // Selection states
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
@@ -482,7 +486,19 @@ export default function CardexReports({
             <div className="space-y-6">
               
               {/* Top toolbar buttons (print, excel) */}
-              <div className="bg-white p-4 rounded-xl border border-stone-200/70 flex justify-end gap-3 no-print">
+              <div className="bg-white p-4 rounded-xl border border-stone-200/70 flex flex-wrap justify-end gap-3 no-print text-xs font-semibold">
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-stone-500 font-bold">جهت صفحه PDF:</span>
+                  <select
+                    value={pdfOrientation}
+                    onChange={(e) => setPdfOrientation(e.target.value as any)}
+                    className="p-1 px-2 border border-stone-200 bg-white rounded cursor-pointer font-sans"
+                  >
+                    <option value="portrait">عمودی (Portrait)</option>
+                    <option value="landscape">افقی (Landscape)</option>
+                  </select>
+                </div>
+
                 <button
                   onClick={handleExcelProductCardex}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -490,28 +506,93 @@ export default function CardexReports({
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                   <span>خروجی فایل اکسل (.xlsx)</span>
                 </button>
+
+                <button
+                  onClick={() => generateDirectPDF("printable-area-product-cardex", `کارتکس_${productCardex.product.name}`, (active, message) => setPdfProgress({ active, message }), { orientation: pdfOrientation })}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  disabled={pdfProgress.active}
+                >
+                  {pdfProgress.active ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <FileText className="w-4 h-4 text-emerald-300" />
+                  )}
+                  <span>دانلود مستقیم PDF</span>
+                </button>
+
                 <button
                   onClick={handlePrintProductCardex}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-stone-200 border border-stone-300/60 text-slate-800 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-stone-600" />
-                  <span>چاپ کارتکس کالا (A4)</span>
+                  <span>چاپ با مرورگر</span>
                 </button>
               </div>
 
-              {/* PRINT ONLY: A4 Header */}
-              <div className="hidden print:block text-center border-b-2 border-stone-800 pb-4 mb-6">
-                <h1 className="text-xl font-bold text-black font-sans">کارتکس حساب فیزیکی کالا (دفتر انبار کارگاه)</h1>
-                <div className="flex justify-between text-xs mt-3 text-stone-800 font-mono">
-                  <span>نام کالا: {productCardex.product.name}</span>
-                  <span>کد موضوعی کالا: {productCardex.product.code}</span>
-                  <span>واحد سنجش: {productCardex.product.unit}</span>
+              {pdfProgress.active && (
+                <div className="no-print bg-amber-50 text-amber-800 border-r-4 border-amber-500 p-3 rounded-r-xl text-[11px] font-sans font-bold flex items-center gap-2 mb-4 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                  <span>{pdfProgress.message}</span>
                 </div>
-                <div className="flex justify-between text-xs mt-1 text-stone-800 font-mono">
-                  <span>حد سفارش بحرانی: {productCardex.product.min_stock}</span>
-                  <span>تاریخ چاپ گزارش: {new Date().toLocaleDateString("fa-IR")}</span>
+              )}
+
+              {/* Printable Wrapper Block */}
+              <div id="printable-area-product-cardex" className="bg-white p-8 rounded-2xl border border-stone-200/70 shadow-xs space-y-6">
+                
+                {/* Brand Header */}
+                <div className="flex justify-between items-center border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    {settings.logo_img ? (
+                      <img src={settings.logo_img} className="w-10 h-10 object-contain rounded bg-white p-0.5 border" alt="لوگو" referrerPolicy="no-referrer" />
+                    ) : settings.logo_text ? (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        {settings.logo_text}
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        انبار
+                      </div>
+                    )}
+                    <div className="flex flex-col space-y-1 text-right">
+                      <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
+                        {settings.enterprise_name || "دفتر کارگاه فنی الوان"}
+                      </span>
+                      <span className="text-[10px] text-stone-500 pr-2.5 font-bold">پروژه: {settings.project_name || "سامانه انبارداری و پیمانکاران"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center space-y-0.5">
+                    <strong className="text-sm font-black text-slate-950">کارتکس حساب فیزیکی کالا (دفتر انبار کارگاه)</strong>
+                    <span className="text-[9px] bg-neutral-100 px-3 py-0.5 rounded-full font-bold">
+                      ریزگردش تفصیلی رویدادهای ورود و خروج کالا
+                    </span>
+                  </div>
+
+                  <div className="text-left font-mono text-[9px] text-stone-500 space-y-0.5">
+                    <div>تاریخ خروجی: {new Date().toLocaleDateString("fa-IR")}</div>
+                    <div>وضعیت گزارش: ممانعت کارکرد کالا</div>
+                  </div>
                 </div>
-              </div>
+
+                {/* Sub Metadata Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-200/50 text-xs">
+                  <div>
+                    <span className="font-bold text-stone-500 block">مشخصات و نام کالا :</span>
+                    <strong className="text-slate-900">{productCardex.product.name}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold text-stone-500 block">کد کالا کلاسیفاید :</span>
+                    <strong className="text-slate-900 font-mono">{productCardex.product.code}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold text-stone-500 block">واحد سنجش / مقیاس :</span>
+                    <strong className="text-slate-900">{productCardex.product.unit}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold text-stone-500 block">حد سفارش بحرانی :</span>
+                    <strong className="text-rose-700 font-mono">{productCardex.product.min_stock || "تکمیل نشده"}</strong>
+                  </div>
+                </div>
 
               {/* Screen Info card / Summary stats */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 no-print">
@@ -681,6 +762,8 @@ export default function CardexReports({
                 </div>
               </div>
 
+              </div>
+
             </div>
           )}
 
@@ -692,7 +775,19 @@ export default function CardexReports({
             <div className="space-y-6">
               
               {/* Toolbar */}
-              <div className="bg-white p-4 rounded-xl border border-stone-200/70 flex justify-end gap-3 no-print">
+              <div className="bg-white p-4 rounded-xl border border-stone-200/70 flex flex-wrap justify-end gap-3 no-print text-xs font-semibold">
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-stone-500 font-bold">جهت صفحه PDF:</span>
+                  <select
+                    value={pdfOrientation}
+                    onChange={(e) => setPdfOrientation(e.target.value as any)}
+                    className="p-1 px-2 border border-stone-200 bg-white rounded cursor-pointer font-sans"
+                  >
+                    <option value="portrait">عمودی (Portrait)</option>
+                    <option value="landscape">افقی (Landscape)</option>
+                  </select>
+                </div>
+
                 <button
                   onClick={handleExcelPersonStatement}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -700,24 +795,89 @@ export default function CardexReports({
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                   <span>خروجی فایل اکسل (.xlsx)</span>
                 </button>
+
+                <button
+                  onClick={() => generateDirectPDF("printable-area-person-cardex", `گزارش_اقلام_تحویلی_${personCardex.person.name}`, (active, message) => setPdfProgress({ active, message }), { orientation: pdfOrientation })}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  disabled={pdfProgress.active}
+                >
+                  {pdfProgress.active ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <FileText className="w-4 h-4 text-emerald-300" />
+                  )}
+                  <span>دانلود مستقیم PDF</span>
+                </button>
+
                 <button
                   onClick={handlePrintProductCardex}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-stone-200 border border-stone-300/60 text-slate-800 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-stone-600" />
-                  <span>چاپ گزارش حساب شخص</span>
+                  <span>چاپ با مرورگر</span>
                 </button>
               </div>
 
-              {/* PRINT ONLY: A4 Header */}
-              <div className="hidden print:block text-center border-b-2 border-stone-800 pb-4 mb-6">
-                <h1 className="text-xl font-bold text-black font-sans">برگه صورت اقلام تحویلی و دریافتی</h1>
-                <div className="flex justify-between text-xs mt-3 text-stone-800 font-mono">
-                  <span>نام طرف حساب/شرکت: {personCardex.person.name}</span>
-                  <span>سمت/نقش در کارگاه: {personCardex.person.role === "contractor" ? "پیمانکار کارگاهی" : "بخش / پروژه فرعی"}</span>
-                  <span>تاریخ گزارش: {new Date().toLocaleDateString("fa-IR")}</span>
+              {pdfProgress.active && (
+                <div className="no-print bg-amber-50 text-amber-800 border-r-4 border-amber-500 p-3 rounded-r-xl text-[11px] font-sans font-bold flex items-center gap-2 mb-4 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                  <span>{pdfProgress.message}</span>
                 </div>
-              </div>
+              )}
+
+              {/* Printable Wrapper Block */}
+              <div id="printable-area-person-cardex" className="bg-white p-8 rounded-2xl border border-stone-200/70 shadow-xs space-y-6">
+
+                {/* Brand Header */}
+                <div className="flex justify-between items-center border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    {settings.logo_img ? (
+                      <img src={settings.logo_img} className="w-10 h-10 object-contain rounded bg-white p-0.5 border" alt="لوگو" referrerPolicy="no-referrer" />
+                    ) : settings.logo_text ? (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        {settings.logo_text}
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                        انبار
+                      </div>
+                    )}
+                    <div className="flex flex-col space-y-1 text-right">
+                      <span className="font-extrabold text-sm text-slate-900 border-r-4 border-slate-900 pr-2.5">
+                        {settings.enterprise_name || "دفتر کارگاه فنی الوان"}
+                      </span>
+                      <span className="text-[10px] text-stone-500 pr-2.5 font-bold">پروژه: {settings.project_name || "سامانه انبارداری و پیمانکاران"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center space-y-0.5">
+                    <strong className="text-sm font-black text-slate-950">صورت‌حساب اقلام تحویلی و دریافتی اشخاص</strong>
+                    <span className="text-[9px] bg-neutral-100 px-3 py-0.5 rounded-full font-bold">
+                      روکش تفصیلی تراکنش‌های کالایی شخص با انبارداری مرکزی
+                    </span>
+                  </div>
+
+                  <div className="text-left font-mono text-[9px] text-stone-500 space-y-0.5">
+                    <div>تاریخ خروجی: {new Date().toLocaleDateString("fa-IR")}</div>
+                    <div>وضعیت گزارش: مانه حساب فیزیکی</div>
+                  </div>
+                </div>
+
+                {/* Sub Metadata Row */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-200/50 text-xs">
+                  <div>
+                    <span className="font-bold text-stone-500 block">نام کامل شخص/شرکت طرف‌حساب :</span>
+                    <strong className="text-slate-900">{personCardex.person.name}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold text-stone-500 block">سمت و رسته فنی در کارگاه :</span>
+                    <strong className="text-slate-900">{personCardex.person.role === "contractor" ? "پیمانکار کارگاهی جزء" : "انبار فرعی / بخش مصرفی"}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold text-stone-500 block">تلفن تماس :</span>
+                    <strong className="text-slate-900 font-mono">{personCardex.person.phone || "---"}</strong>
+                  </div>
+                </div>
 
               {/* Profile details */}
               <div className="bg-brand-forest text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
@@ -929,6 +1089,8 @@ export default function CardexReports({
                   </div>
                 </div>
               )}
+
+              </div>
 
             </div>
           )}
